@@ -1,0 +1,115 @@
+.text {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 11px;
+}
+.erro {
+   color: #ff0000;
+}
+.info {
+   color: #999999;
+}
+.atencao {
+   color: #009966;
+}
+.titulo {
+
+   text-align: center;   
+   background-color: #336666;
+   height: 20;
+   font-style:italic;
+   color:#FFFFFF;
+      
+   /** Arredondando tudo */
+   border-radius: 5px 5px 0px 0px;   
+   -webkit-border-radius: 5px 5px 0px 0px;
+   -moz-border-radius: 5px 5px 0px 0px;
+   /* behavior: url(PIE.htc); */
+}
+
+.rodape {
+   color: #c9c9cb;
+   height: 15;
+   font-size: 8pt;
+   text-align: left;
+   font-weight: bold;
+}
+a {
+   text-decoration: none;
+   color: black;
+}
+a:visited {
+   color: black;
+}
+a:hover {
+   color: red;
+   font-weight: bold;
+}
+body {
+   font-family: Arial, Helvetica, sans-serif;
+   font-size: 11px;
+   margin:10px;
+   background-repeat:no-repeat;
+   background-color: #FFFFFF;   
+   scrollbar-face-color: #FFFFFF;
+   scrollbar-shadow-color: #666666;
+   scrollbar-highlight-color: #666666;
+   scrollbar-3dlight-color: #FFFFFF;
+   scrollbar-darkshadow-color: #FFFFFF;
+   scrollbar-track-color: #FFFFFF;
+   scrollbar-arrow-color: #666666;
+}
+input {
+   font-family: Arial, Helvetica, sans-serif;
+   font-size: 11px;
+   border: #666666 1px solid;
+   
+   /** Arredondando tudo */
+   border-radius: 5px 5px 5px 5px;   
+   /*
+   -webkit-border-radius: 5px 5px 5px 5px;
+   -moz-border-radius: 5px 5px 5px 5px;
+   behavior: url(PIE.htc); 
+   */
+   
+}
+select {
+   font-family: Arial, Helvetica, sans-serif;
+   font-size: 11px;
+   border: #666666; 1px solid;
+   /** Arredondando tudo */
+   border-radius: 5px 5px 5px 5px;   
+   /* 
+   -webkit-border-radius: 5px 5px 5px 5px;
+   -moz-border-radius: 5px 5px 5px 5px;
+   behavior: url(PIE.htc); 
+   */
+}
+textarea {
+   font-family: Arial, Helvetica, sans-serif;
+   font-size: 11px;
+   border: #666666; 1px solid;
+   
+   /** Arredondando tudo */
+   border-radius: 5px 5px 5px 5px;   
+   -webkit-border-radius: 5px 5px 5px 5px;
+   -moz-border-radius: 5px 5px 5px 5px;
+   /* behavior: url(PIE.htc); */
+}
+table {   
+   font-family: Arial, Helvetica, sans-serif;
+   font-size: 11px;
+   border: #666666; 1px solid;
+      
+   /** Arredondando tudo */
+   border-radius: 5px 5px 5px 5px;   
+   -webkit-border-radius: 5px 5px 5px 5px;
+   -moz-border-radius: 5px 5px 5px 5px;
+   
+   /** Sombra em toda a Tabela
+   -webkit-box-shadow: #666 0px 10px 10px;
+   -moz-box-shadow: #666 0px 10px 10px;
+   box-shadow: #666 0px 10px 10px;   
+   **/
+   /* behavior: url(PIE.htc); */
+   
+}

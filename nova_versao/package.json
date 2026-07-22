@@ -1,0 +1,15 @@
+{
+  "name": "knoll-nova-versao",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && npm run dev",
+    "migrate": "cd backend && npm run migrate"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

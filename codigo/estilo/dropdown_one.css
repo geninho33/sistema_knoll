@@ -1,0 +1,138 @@
+* {	margin:0; padding:0; }
+
+*.menu {width:99%; 
+        height:30px; 
+		text-align:left; 
+		font-size:11px; 
+		position:relative; 
+		z-index:100; 
+		padding-left:3px; 
+		padding-top:1px; 
+		margin-bottom:5px; 		
+   		font-family: Arial, Helvetica, sans-serif;
+   		BORDER: 1px solid;
+        background-color: #09F; 	    
+		
+		/** Arredondando acima a direita **/
+		border-top-right-radius: 5px;
+		border-bottom-right-radius: 5px;
+		   
+		/** Arredondando acima a direita **/
+		border-top-left-radius: 5px;    
+		border-bottom-left-radius: 5px;
+	
+		}
+		
+/* hack para corrigir no IE5.5 "faulty box model" */
+* html .menu { width:90%;
+               width:90%;}
+			   
+/* vai remover todos os lists styles e paddings do menu */
+.menu ul {padding:0;
+          margin:0;
+		  list-style-type:none;}
+.menu ul ul { width:140px; }
+
+/* para fazer o menu na horizontal. O position relative é para controlarmos a posiçao do sub-menu */
+.menu li {float:left;
+           width:150px;
+		   position:relative; 
+		   line-height:30px; }
+		   
+/* Estilos para os links do primeiro nível */
+.menu a, .menu a:visited {background-color:#09F; /* #336666 */
+                          display:block;
+						  font-size:12px;
+						  text-decoration:none; 
+						  color:#FFFFFF; 
+						  width:145px; 
+						  height:30px; 
+						  padding-left:10px; 
+						  line-height:30px; }
+						  
+/* hack para que o IE5.5 "faulty box model" fique perfeito */
+* html .menu a, * html .menu a:visited {width:148px; 
+                                        w\idth:146px; 
+										font-weight:bold; 
+										line-height:30px;}
+
+/* Estilos para o bg do 2o nível */
+.menu ul ul a.drop, .menu ul ul a.drop:visited {background-image: url(layout2/fundo.jpg); 
+                                                font-weight:bold; }
+/* Estilo para o :hover dos links no 2o nível */
+.menu ul ul a.drop:hover{background:#c9ba65; 
+                         line-height:30px; }						 
+.menu ul ul :hover > a.drop {background:#c9ba65; }
+
+/* Estilos para o bg do 3o nível */
+.menu ul ul ul a, .menu ul ul ul a:visited {background:#e2dfa8;}
+
+/* Estilo para o :hover dos links no 3o nível */
+.menu ul ul ul a:hover {background:#b2ab9b; }
+
+/* Esconde o submenu e damos uma posiçao absoluta para que eles fiquem de acordo com os links de 1o nivel */
+.menu ul ul { visibility:hidden;
+              position:absolute;
+			  height:0;
+			  top:31px;
+			  left:0; 
+			  width:144px; 
+			  height:30px; }
+			  
+/* hack para o IE5.5 */
+* html .menu ul ul {top:30px;top:31px;}
+
+/* posiçao do submenu de 3o nível */
+.menu ul ul ul{left:149px; top:-1px; width:149px;}
+
+/* posiçao para o menu de 3o nível para abrir para o lado direito */
+.menu ul ul ul.left {left:-149px;}
+
+/* estilos para a tabela que vai fazer parte do layout somente no IE - SOMENTE NO IE!! */
+.menu table {position:absolute; 
+             top:0; 
+			 left:0; 
+			 border-collapse:collapse;;}
+
+/* Estilos para os links do submenu de 2o nível */
+.menu ul ul a, .menu ul ul a:visited {  text-indent:8px; 
+                                        background-color:#09F; 
+									    color :#FFFFFF;
+									    line-height:30px;  
+									    height:30px; 
+						     		    font-family: Arial, Helvetica, sans-serif;
+										border:1px;
+										border-left-color:#09F;
+										border-right-color:#09F;
+										 }
+										
+									  								
+ }
+/* hack para o IE5.5 */
+* html .menu ul ul a, * html .menu ul ul a:visited {width:156px;w\idth:145px;}
+
+/* Estilo para o hover dos links de 1o nível */
+.menu a:hover, .menu ul ul a:hover{ color:#09F; 
+                                    background-color:#FFFFFF; 
+									width:144px;}
+									
+.menu :hover > a, .menu ul ul :hover > a {color:#003399;}
+
+/* Para fazer o submenu de 2o nível ficar visivel quando passarmos o mouse sobre os links de 1o nível ou nos links do próprio menu (2o ou 3o nível) */
+.menu ul li:hover ul,
+.menu ul a:hover ul{visibility:visible; }
+
+/* Mantém o 3o nível escondido quando estivermos no 1o nível*/
+.menu ul :hover ul ul{visibility:hidden;}
+
+/* Exibe o 3o nível quando estivermos com o mouse sobre os links de 2o nivel */
+.menu ul :hover ul :hover ul{ visibility:visible;}
+
+.painel {
+	width: 880px;
+	height: 400px;
+	position: relative;
+	left: 10px;
+	top: 120px;
+	margin: 0;	
+}

@@ -1,0 +1,173 @@
+.text {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 11px;
+}
+.erro {
+   color: #ff0000;
+}
+.info {
+   color: #999999;
+}
+.atencao {
+   color: #009966;
+}
+.titulo {
+
+   text-align: center;   
+   background-color: #09F;
+   height: 20;
+   font-style:italic;
+   color:#FFFFFF;
+      
+   /** Arredondando tudo */
+   border-radius: 5px 5px 0px 0px;   
+   -webkit-border-radius: 5px 5px 0px 0px;
+   -moz-border-radius: 5px 5px 0px 0px;
+   /* behavior: url(PIE.htc); */
+}
+
+.rodape {
+   color: #c9c9cb;
+   height: 15;
+   font-size: 8pt;
+   text-align: left;
+   font-weight: bold;
+}
+a {
+   text-decoration: none;
+   color: black;
+}
+a:visited {
+   color: black;
+}
+a:hover {
+   color: red;
+   font-weight: bold;
+}
+body {
+   font-family: Arial, Helvetica, sans-serif;
+   font-size: 11px;
+   margin:10px;
+   background-repeat:no-repeat;
+   background-color: #FFFFFF;   
+   scrollbar-face-color: #FFFFFF;
+   scrollbar-shadow-color: #666666;
+   scrollbar-highlight-color: #666666;
+   scrollbar-3dlight-color: #FFFFFF;
+   scrollbar-darkshadow-color: #FFFFFF;
+   scrollbar-track-color: #FFFFFF;
+   scrollbar-arrow-color: #666666;
+}
+input {
+   font-family: Arial, Helvetica, sans-serif;
+   font-size: 11px;
+   border: #c9c9cb 1px solid;
+   
+   /** Arredondando tudo */
+   border-radius: 5px 5px 5px 5px;   
+   -webkit-border-radius: 5px 5px 5px 5px;
+   -moz-border-radius: 5px 5px 5px 5px;
+   /* behavior: url(PIE.htc); */
+   
+}
+select {
+   font-family: Arial, Helvetica, sans-serif;
+   font-size: 11px;
+   border: #c9c9cb 1px solid;
+   /** Arredondando tudo */
+   border-radius: 5px 5px 5px 5px;   
+   -webkit-border-radius: 5px 5px 5px 5px;
+   -moz-border-radius: 5px 5px 5px 5px;
+   /* behavior: url(PIE.htc); */
+}
+textarea {
+   font-family: Arial, Helvetica, sans-serif;
+   font-size: 11px;
+   border: #c9c9cb 1px solid;
+   
+   /** Arredondando tudo */
+   border-radius: 5px 5px 5px 5px;   
+   -webkit-border-radius: 5px 5px 5px 5px;
+   -moz-border-radius: 5px 5px 5px 5px;
+   /* behavior: url(PIE.htc); */
+}
+table {   
+   
+   BORDER: #000 1px solid;
+   background: #CCC;
+   -- border-radius: 5px 5px 5px 5px;   	
+   
+   font-family: Arial, Helvetica, sans-serif;
+   font-size: 11px;
+   -- BORDER: #666666 1px solid;
+      
+   /** Arredondando tudo */
+   border-radius: 5px 5px 5px 5px;   
+   -webkit-border-radius: 5px 5px 5px 5px;
+   -moz-border-radius: 5px 5px 5px 5px;
+   
+   /** Sombra em toda a Tabela**/
+   -webkit-box-shadow: #666 0px 10px 10px;
+   -moz-box-shadow: #666 0px 10px 10px;
+   box-shadow: #666 0px 10px 10px;   
+   
+   /* behavior: url(PIE.htc); */
+   
+}
+
+tr {
+    height: 25;
+    BORDER: #666666 1px solid;	
+}
+td {
+    PADDING-LEFT: 5px;
+    PADDING-RIGHT: 5px;
+    BORDER: #666666 1px solid;	
+}
+th {
+	
+    text-align: center;   
+    background-color: #666666;
+    height: 20;
+    font-style:italic;
+    color:#FFFFFF;
+	
+   /** Arredondando tudo */
+   border-radius: 5px 5px 0px 0px;   
+   -webkit-border-radius: 5px 5px 0px 0px;
+   -moz-border-radius: 5px 5px 0px 0px;
+   /* behavior: url(PIE.htc); */
+}
+
+.tbclean {
+   BORDER-TOP: 0px;
+   BORDER-LEFT: 0px;
+   PADDING-LEFT: 5px;
+   BORDER-RIGHT: 0px;
+   PADDING-RIGHT: 5px;
+   BORDER-BOTTOM: 0px;
+}
+.fundo {
+	background-attachment: fixed;
+	background-repeat: no-repeat;
+	background-position: center;
+	border: none;
+}
+.FundoTopo {
+	background-image: url(../imagens/Linha_topo.jpg);
+	background-repeat:inherit;
+}
+.table_interna{
+   font-family: Arial, Helvetica, sans-serif;
+   /* BORDER: #000 1px solid; */
+   border-style: groove;
+   border-width: thick;
+   border-color: white;
+   background: #DCD9D3;   
+}
+.table_externa {
+   font-family: Arial, Helvetica, sans-serif;
+   BORDER: #000 1px solid;
+   background: #CCC;
+   border-radius: 5px 5px 5px 5px;   	
+}
