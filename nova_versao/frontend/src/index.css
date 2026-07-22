@@ -19,40 +19,59 @@
     @apply outline-none ring-2 ring-blue-500 ring-offset-2;
   }
 
-  input, select, textarea, button {
+  input,
+  select,
+  textarea,
+  button {
     font-size: 16px; /* evita zoom automático no iOS */
   }
 
   @media (min-width: 769px) {
-    input, select, textarea, button {
+    input,
+    select,
+    textarea,
+    button {
       font-size: 14px;
     }
   }
 }
 
 @layer components {
+  /* Evitar @apply de classes customizadas (ex.: btn, card-surface) — quebra o PostCSS/Tailwind */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 min-h-[44px] min-w-[44px] px-4 py-2.5 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .btn-primary {
-    @apply btn bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .btn-secondary {
-    @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-300;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-300;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .btn-ghost {
-    @apply btn bg-transparent text-slate-600 hover:bg-slate-100;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation bg-transparent text-slate-600 hover:bg-slate-100;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .btn-danger {
-    @apply btn bg-red-50 text-red-700 hover:bg-red-100;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation bg-red-50 text-red-700 hover:bg-red-100;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .btn-icon {
-    @apply inline-flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg transition-colors touch-manipulation;
+    @apply inline-flex items-center justify-center rounded-lg transition-colors touch-manipulation;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .field-label {
@@ -60,7 +79,8 @@
   }
 
   .field-input {
-    @apply w-full min-h-[44px] border border-slate-300 bg-white px-3 py-2.5 rounded-lg outline-none transition-shadow focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+    @apply w-full border border-slate-300 bg-white px-3 py-2.5 rounded-lg outline-none transition-shadow focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+    min-height: 44px;
   }
 
   .page-title {
@@ -72,7 +92,7 @@
   }
 
   .mobile-card {
-    @apply card-surface p-4 space-y-3;
+    @apply bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3;
   }
 
   .mobile-card-title {
@@ -88,11 +108,14 @@
   }
 
   .drawer-overlay {
-    @apply fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-40 transition-opacity duration-300;
+    @apply fixed inset-0 bg-slate-900/50 z-40 transition-opacity duration-300;
+    backdrop-filter: blur(2px);
   }
 
   .drawer-panel {
-    @apply fixed inset-y-0 left-0 z-50 w-[min(100vw,20rem)] bg-slate-900 text-white shadow-2xl flex flex-col transition-transform duration-300 ease-drawer;
+    @apply fixed inset-y-0 left-0 z-50 bg-slate-900 text-white shadow-2xl flex flex-col transition-transform duration-300;
+    width: min(100vw, 20rem);
+    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
   }
 
   .table-desktop {
@@ -104,7 +127,7 @@
   }
 
   .filter-panel {
-    @apply card-surface p-3 sm:p-4;
+    @apply bg-white rounded-xl shadow-sm border border-slate-200 p-3 sm:p-4;
   }
 
   .kpi-grid {
@@ -128,6 +151,7 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -144,10 +168,16 @@
 
 /* Impressão */
 @media print {
-  aside, header, .no-print, .drawer-overlay, .drawer-panel {
+  aside,
+  header,
+  .no-print,
+  .drawer-overlay,
+  .drawer-panel {
     display: none !important;
   }
-  main, .print-area {
+
+  main,
+  .print-area {
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;

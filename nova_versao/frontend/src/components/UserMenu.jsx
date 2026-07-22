@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { User, ChevronDown, KeyRound, LogOut, UserCircle, Loader2, Save } from 'lucide-react';
-import Modal from '../ui/Modal';
-import { apiFetch } from '../../utils/api';
+import Modal from './ui/Modal';
+import { apiFetch } from '../utils/api';
 
 export default function UserMenu({ user, onLogout, onUserUpdate }) {
   const [open, setOpen] = useState(false);
