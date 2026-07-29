@@ -179,22 +179,6 @@ router.put('/ordens/:id', async (req, res) => {
   }
 });
 
-// GET /agenda
-router.get('/agenda', async (req, res) => {
-  try {
-    const [rows] = await db.query(`
-      SELECT s.IDSER, s.DT_ENTR, s.IN_STATUS, s.EQUIPAMENTO, c.NOME as CLIENTE_NOME, c.TELEFONE, c.ENDERECO, c.BAIRRO 
-      FROM knoll_servicos s 
-      LEFT JOIN knoll_clientes c ON s.IDCLI = c.IDCLI 
-      WHERE s.IN_STATUS != 'Encerrado'
-      ORDER BY s.DT_ENTR DESC LIMIT 50
-    `);
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // GET /search (Global Search)
 router.get('/search', async (req, res) => {
   const query = req.query.q || '';

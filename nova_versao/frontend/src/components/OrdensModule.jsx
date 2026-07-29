@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Loader2 } from 'lucide-react';
 import Modal from './ui/Modal';
 import { Pagination, LoadingBlock, EmptyState, PageHeader } from './ui/Pagination';
+import { BotaoImprimirOS } from './ordens/OrdemServicoPrint';
 
 export default function OrdensModule() {
   const [data, setData] = useState({ data: [], totalPages: 1, page: 1, total: 0 });
@@ -24,7 +25,7 @@ export default function OrdensModule() {
   const fetchOrdens = async (pageNum, query) => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3001/api/ordens?page=${pageNum}&limit=10&q=${query}`);
+      const res = await fetch(`/api/ordens?page=${pageNum}&limit=10&q=${query}`);
       const result = await res.json();
       setData(result);
     } catch (error) {
@@ -37,7 +38,7 @@ export default function OrdensModule() {
   const fetchItens = async (idser) => {
     setLoadingItens(true);
     try {
-      const res = await fetch(`http://localhost:3001/api/ordens/${idser}/itens`);
+      const res = await fetch(`/api/ordens/${idser}/itens`);
       setItensOs(await res.json());
     } catch (error) {
       console.error(error);
@@ -55,8 +56,8 @@ export default function OrdensModule() {
     e.preventDefault();
     const isEdit = !!editingOrdem;
     const url = isEdit
-      ? `http://localhost:3001/api/ordens/${editingOrdem.IDSER}`
-      : 'http://localhost:3001/api/ordens';
+      ? `/api/ordens/${editingOrdem.IDSER}`
+      : '/api/ordens';
 
     await fetch(url, {
       method: isEdit ? 'PUT' : 'POST',
@@ -165,6 +166,7 @@ export default function OrdensModule() {
                   </div>
                   <p className="mobile-card-meta truncate"><span className="font-medium text-slate-700">Equip.:</span> {o.EQUIPAMENTO || '-'}</p>
                   <p className="mobile-card-meta truncate">{o.DEFEITO}</p>
+                  <BotaoImprimirOS idser={o.IDSER} className="w-full" />
                 </article>
               ))}
             </div>
@@ -196,9 +198,12 @@ export default function OrdensModule() {
                       </td>
                       <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${getStatusColor(o.IN_STATUS)}`}>{o.IN_STATUS || 'S/ STATUS'}</span></td>
                       <td className="p-4 text-right">
-                        <button type="button" onClick={() => openEdit(o)} className="btn-icon text-blue-600 bg-blue-50" aria-label="Editar">
-                          <Edit2 size={16} />
-                        </button>
+                        <div className="inline-flex gap-2">
+                          <BotaoImprimirOS idser={o.IDSER} />
+                          <button type="button" onClick={() => openEdit(o)} className="btn-icon text-blue-600 bg-blue-50" aria-label="Editar">
+                            <Edit2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -226,6 +231,7 @@ export default function OrdensModule() {
         footer={
           <>
             <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary w-full sm:w-auto">Cancelar</button>
+            {editingOrdem && <BotaoImprimirOS idser={editingOrdem.IDSER} className="w-full sm:w-auto" />}
             <button type="submit" form="form-os" className="btn-primary w-full sm:w-auto">Salvar O.S.</button>
           </>
         }

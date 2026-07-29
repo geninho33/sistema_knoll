@@ -90,7 +90,8 @@ router.post('/login', async (req, res) => {
       sysUser = created[0];
     }
 
-    if (sysUser.deleted_at || sysUser.status === 'I') {
+    const statusOk = !sysUser.deleted_at && ['A', 'ATIVO', 'ACTIVE', '1'].includes(String(sysUser.status || '').trim().toUpperCase());
+    if (!statusOk) {
       await registrarAcesso({
         usuarioId: sysUser.id,
         login: usuario,
@@ -99,7 +100,10 @@ router.post('/login', async (req, res) => {
         status: 'falha',
         detalhes: 'Usuário inativo',
       });
-      return res.status(401).json({ error: 'Usuário inativo' });
+      return res.status(403).json({
+        error: 'Acesso negado. Seu usuário encontra-se inativo no sistema.',
+        code: 'USER_INACTIVE',
+      });
     }
 
     if (user.cd_pass !== senha) {

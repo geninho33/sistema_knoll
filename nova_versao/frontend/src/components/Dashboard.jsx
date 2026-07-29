@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  LogOut, Home, Wrench, Users, Calendar, BarChart3, User, Loader2, Menu, X,
-  FileBarChart, Shield, ChevronDown, ChevronRight, Package, Boxes, ClipboardList, KeyRound, ScrollText, History
+  LogOut, Home, Wrench, Users, Calendar, BarChart3, User, Menu, X,
+  FileBarChart, Shield, ChevronDown, ChevronRight, Package, Boxes, ClipboardList, KeyRound, ScrollText, History,
+  MapPinned, Building2
 } from 'lucide-react';
 import ClientesModule from './ClientesModule';
 import OrdensModule from './OrdensModule';
+import AgendaTecnica from './agenda/AgendaTecnica';
+import AtendimentoTecnicoMobile from './atendimento/AtendimentoTecnicoMobile';
 import {
   RelatorioClientes,
   RelatorioServicos,
@@ -14,13 +17,16 @@ import {
 import UsuariosModule from './admin/UsuariosModule';
 import PerfisModule from './admin/PerfisModule';
 import { AcessosModule, AuditoriaModule } from './admin/AcessosAuditoria';
+import DadosEmpresa from './admin/DadosEmpresa';
 import UserMenu from './UserMenu';
+import { apiFetch } from '../utils/api';
 
 const MENU = [
   { id: 'home', label: 'Painel Geral', icon: Home },
   { id: 'clientes', label: 'Clientes', icon: Users },
   { id: 'ordens', label: 'Ordens de Serviço', icon: Wrench },
   { id: 'agenda', label: 'Agenda Técnica', icon: Calendar },
+  { id: 'atendimento', label: 'Atendimento Técnico', icon: MapPinned },
   {
     id: 'relatorios',
     label: 'Relatórios',
@@ -39,7 +45,8 @@ const MENU = [
     children: [
       { id: 'admin_usuarios', label: 'Usuários', icon: User },
       { id: 'admin_perfis', label: 'Perfis', icon: KeyRound },
-      { id: 'admin_acessos', label: 'Consulta de Acessos', icon: History },
+      { id: 'admin_acessos', label: 'Acessos (RBAC)', icon: History },
+      { id: 'admin_empresa', label: 'Dados da Empresa', icon: Building2 },
       { id: 'admin_auditoria', label: 'Auditoria', icon: ScrollText },
     ],
   },
@@ -61,15 +68,23 @@ function NavContent({
   goTo,
   onLogout,
   onNavigate,
+  empresa,
 }) {
   const isChildActive = (item) => item.children?.some((c) => c.id === activeModule);
+  const brand = empresa?.nm_empr || 'MARLON KNOLL';
 
   return (
     <>
       <div className="p-5 border-b border-slate-800 flex items-center gap-3 bg-slate-950/50">
-        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center font-bold shadow-lg ring-2 ring-slate-800 shrink-0">MK</div>
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center font-bold shadow-lg ring-2 ring-slate-800 shrink-0 overflow-hidden">
+          {empresa?.logo_url ? (
+            <img src={empresa.logo_url} alt="" className="w-full h-full object-contain bg-white" />
+          ) : (
+            'MK'
+          )}
+        </div>
         <div className="min-w-0">
-          <h1 className="font-bold tracking-wider text-sm truncate">MARLON KNOLL</h1>
+          <h1 className="font-bold tracking-wider text-sm truncate">{brand}</h1>
           <p className="text-xs text-blue-400 font-medium">Assistência Técnica</p>
         </div>
       </div>
@@ -151,10 +166,28 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
   const [activeModule, setActiveModule] = useState('home');
   const [openGroups, setOpenGroups] = useState({ relatorios: true, admin: true });
   const [menuOpen, setMenuOpen] = useState(false);
-  const [agenda, setAgenda] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [empresa, setEmpresa] = useState(null);
 
   const goTo = (id) => setActiveModule(id);
+
+  const loadEmpresa = useCallback(async () => {
+    try {
+      const data = await apiFetch('/configuracao/public');
+      setEmpresa(data);
+    } catch (_) {
+      /* ignore — sessão inativa já é tratada no apiFetch */
+    }
+  }, []);
+
+  useEffect(() => {
+    loadEmpresa();
+    const onUpdated = (e) => {
+      if (e.detail) setEmpresa((prev) => ({ ...prev, ...e.detail }));
+      else loadEmpresa();
+    };
+    window.addEventListener('knoll:empresa-updated', onUpdated);
+    return () => window.removeEventListener('knoll:empresa-updated', onUpdated);
+  }, [loadEmpresa]);
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -167,36 +200,27 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
     };
   }, [menuOpen]);
 
-  useEffect(() => {
-    if (activeModule !== 'agenda') return;
-    setLoading(true);
-    fetch('http://localhost:3001/api/agenda')
-      .then((r) => r.json())
-      .then(setAgenda)
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [activeModule]);
-
   const titles = {
     home: 'Painel Geral',
     clientes: 'Clientes',
     ordens: 'Ordens de Serviço',
     agenda: 'Agenda Técnica',
+    atendimento: 'Atendimento Técnico',
     rel_clientes: 'Relatório de Clientes',
     rel_servicos: 'Relatório de Serviços',
     rel_pecas: 'Relatório de Peças',
     rel_produtos: 'Relatório de Produtos',
     admin_usuarios: 'Usuários',
     admin_perfis: 'Perfis',
-    admin_acessos: 'Consulta de Acessos',
+    admin_acessos: 'Acessos (RBAC)',
+    admin_empresa: 'Dados da Empresa',
     admin_auditoria: 'Auditoria',
   };
 
-  const renderContent = () => {
-    if (loading && activeModule === 'agenda') {
-      return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-500" size={40} /></div>;
-    }
+  const year = new Date().getFullYear();
+  const brand = empresa?.nm_empr || 'Marlon Knoll';
 
+  const renderContent = () => {
     switch (activeModule) {
       case 'home':
         return (
@@ -218,7 +242,11 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
             <div className="card-surface p-6 sm:p-10 text-center">
               <BarChart3 size={40} className="text-blue-500 mx-auto mb-4" />
               <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-2">Painel Interativo</h3>
-              <p className="text-slate-500 text-sm sm:text-base">Use o menu para acessar módulos, relatórios e administração.</p>
+              <p className="text-slate-500 text-sm sm:text-base">Use o menu para Agenda Técnica, Atendimento Mobile, Relatórios e Administração.</p>
+              <div className="mt-5 flex flex-col sm:flex-row gap-2 justify-center">
+                <button type="button" className="btn-primary" onClick={() => goTo('agenda')}>Abrir Agenda</button>
+                <button type="button" className="btn-secondary" onClick={() => goTo('atendimento')}>Atendimento Mobile</button>
+              </div>
             </div>
           </div>
         );
@@ -227,25 +255,9 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
       case 'ordens':
         return <OrdensModule />;
       case 'agenda':
-        return (
-          <div className="animate-in fade-in duration-500">
-            <h2 className="page-title mb-4 sm:mb-6">Agenda Técnica (Pendentes)</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-              {agenda.map((a) => (
-                <div key={a.IDSER} className="mobile-card hover:border-blue-300 transition-colors">
-                  <div className="flex justify-between items-start gap-2">
-                    <h4 className="mobile-card-title">{a.CLIENTE_NOME || 'Cliente não informado'}</h4>
-                    <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-bold shrink-0">OS #{a.IDSER}</span>
-                  </div>
-                  <p className="mobile-card-meta"><span className="font-medium text-slate-700">Equipamento:</span> {a.EQUIPAMENTO}</p>
-                  <p className="mobile-card-meta"><span className="font-medium text-slate-700">Local:</span> {a.ENDERECO}, {a.BAIRRO}</p>
-                  <p className="mobile-card-meta"><span className="font-medium text-slate-700">Contato:</span> {a.TELEFONE}</p>
-                </div>
-              ))}
-              {agenda.length === 0 && <p className="text-slate-500 text-sm">Nenhum atendimento pendente.</p>}
-            </div>
-          </div>
-        );
+        return <AgendaTecnica />;
+      case 'atendimento':
+        return <AtendimentoTecnicoMobile user={user} />;
       case 'rel_clientes':
         return <RelatorioClientes />;
       case 'rel_servicos':
@@ -260,6 +272,12 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
         return <PerfisModule />;
       case 'admin_acessos':
         return <AcessosModule />;
+      case 'admin_empresa':
+        return (
+          <DadosEmpresa
+            onEmpresaChange={(data) => setEmpresa((prev) => ({ ...prev, ...data }))}
+          />
+        );
       case 'admin_auditoria':
         return <AuditoriaModule />;
       default:
@@ -268,9 +286,9 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
   };
 
   return (
-    <div className="min-h-dvh bg-slate-50 flex font-sans overflow-x-hidden">
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-64 bg-slate-900 text-white flex-col shadow-2xl z-20 shrink-0 sticky top-0 h-dvh">
+    <div className="h-dvh bg-slate-50 flex font-sans overflow-hidden">
+      {/* Desktop sidebar — fixo */}
+      <aside className="hidden lg:flex w-64 bg-slate-900 text-white flex-col shadow-2xl z-20 shrink-0 h-dvh">
         <NavContent
           user={user}
           activeModule={activeModule}
@@ -278,6 +296,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
           setOpenGroups={setOpenGroups}
           goTo={goTo}
           onLogout={onLogout}
+          empresa={empresa}
         />
       </aside>
 
@@ -310,13 +329,14 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
               goTo={goTo}
               onLogout={onLogout}
               onNavigate={() => setMenuOpen(false)}
+              empresa={empresa}
             />
           </aside>
         </>
       )}
 
-      <div className="flex-1 flex flex-col min-w-0 min-h-dvh">
-        <header className="bg-white border-b border-slate-200 px-3 sm:px-5 lg:px-8 flex items-center justify-between gap-2 shrink-0 h-14 sm:h-16 sticky top-0 z-30 safe-pt">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 h-dvh">
+        <header className="bg-white border-b border-slate-200 px-3 sm:px-5 lg:px-8 flex items-center justify-between gap-2 shrink-0 h-14 sm:h-16 z-30 safe-pt">
           <div className="flex items-center gap-2 min-w-0">
             <button
               type="button"
@@ -326,18 +346,30 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
             >
               <Menu size={22} />
             </button>
+            {empresa?.logo_url && (
+              <img
+                src={empresa.logo_url}
+                alt=""
+                className="hidden sm:block h-8 w-auto max-w-[120px] object-contain shrink-0"
+              />
+            )}
             <div className="min-w-0">
               <p className="text-sm sm:text-base font-bold text-slate-800 truncate">{titles[activeModule] || 'Sistema'}</p>
-              <p className="text-[11px] text-slate-400 hidden xs:block truncate lg:hidden">Marlon Knoll</p>
+              <p className="text-[11px] text-slate-400 hidden xs:block truncate lg:hidden">{brand}</p>
             </div>
           </div>
 
           <UserMenu user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />
         </header>
 
-        <main className="flex-1 p-3 sm:p-5 lg:p-8 overflow-y-auto overflow-x-hidden bg-slate-50 safe-pb">
+        <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-50 p-3 sm:p-5 lg:p-8 pb-4">
           {renderContent()}
         </main>
+
+        <footer className="w-full bg-white border-t border-slate-200 py-3 px-4 sm:px-6 text-sm text-slate-600 flex flex-col sm:flex-row justify-between items-center gap-1 shrink-0 z-10 safe-pb">
+          <span className="truncate">© {year} {brand}</span>
+          <span className="text-xs text-slate-400">Sistema de Assistência Técnica</span>
+        </footer>
       </div>
     </div>
   );

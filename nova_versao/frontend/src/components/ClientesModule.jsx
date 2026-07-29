@@ -22,7 +22,7 @@ export default function ClientesModule() {
   const fetchClientes = async (pageNum, query) => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3001/api/clientes?page=${pageNum}&limit=10&q=${query}`);
+      const res = await fetch(`/api/clientes?page=${pageNum}&limit=10&q=${query}`);
       const result = await res.json();
       setData(result);
     } catch (error) {
@@ -41,8 +41,8 @@ export default function ClientesModule() {
     e.preventDefault();
     const isEdit = !!editingClient;
     const url = isEdit
-      ? `http://localhost:3001/api/clientes/${editingClient.IDCLI}`
-      : 'http://localhost:3001/api/clientes';
+      ? `/api/clientes/${editingClient.IDCLI}`
+      : '/api/clientes';
 
     await fetch(url, {
       method: isEdit ? 'PUT' : 'POST',

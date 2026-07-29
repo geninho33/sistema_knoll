@@ -1,20 +1,29 @@
 const express = require('express');
-const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
+const { corsMiddleware } = require('./middleware/cors');
 const authRoutes = require('./routes/auth');
 const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
 const reportsRoutes = require('./routes/reports');
+const agendaRoutes = require('./routes/agenda');
+const configuracaoRoutes = require('./routes/configuracao');
 
 const app = express();
 
-app.use(cors());
+app.use(corsMiddleware());
+app.options('*', corsMiddleware());
 app.use(express.json({ limit: '2mb' }));
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/relatorios', reportsRoutes);
+app.use('/api/agenda', agendaRoutes);
+app.use('/api/configuracao', configuracaoRoutes);
+app.use('/api/v1/configuracao', configuracaoRoutes);
 app.use('/api', apiRoutes);
 
 app.get('/api/health', (req, res) => {

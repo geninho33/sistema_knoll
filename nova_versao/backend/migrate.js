@@ -20,6 +20,20 @@ function splitSql(sql) {
     .filter((s) => s.length > 0);
 }
 
+async function ensureConfigColumns(conn) {
+  const [cols] = await conn.query(`SHOW COLUMNS FROM knoll_configuracao`);
+  const names = new Set(cols.map((c) => c.Field));
+  if (!names.has('nu_ie')) {
+    await conn.query(`ALTER TABLE knoll_configuracao ADD COLUMN nu_ie VARCHAR(20) NULL AFTER nu_cnpj`);
+  }
+  if (!names.has('ds_obs')) {
+    await conn.query(`ALTER TABLE knoll_configuracao ADD COLUMN ds_obs TEXT NULL`);
+  }
+  if (!names.has('ds_logo')) {
+    await conn.query(`ALTER TABLE knoll_configuracao ADD COLUMN ds_logo VARCHAR(255) NULL`);
+  }
+}
+
 async function run() {
   const dir = path.join(__dirname, 'migrations');
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
@@ -32,9 +46,15 @@ async function run() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
-  // Corrige marcação falsa da migration 001 (0 statements)
-  await db.query(`DELETE FROM sys_migrations WHERE filename = '001_admin_and_reports.sql'`);
-  await db.query(`DELETE FROM sys_migrations WHERE filename = '002_seed_menus_perfis.sql'`);
+  // Garante colunas de logo/IE/obs na configuração
+  {
+    const conn = await db.getConnection();
+    try {
+      await ensureConfigColumns(conn);
+    } finally {
+      conn.release();
+    }
+  }
 
   const [done] = await db.query('SELECT filename FROM sys_migrations');
   const executed = new Set(done.map((r) => r.filename));
