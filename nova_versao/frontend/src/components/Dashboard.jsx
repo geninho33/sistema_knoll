@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  LogOut, Home, Wrench, Users, Calendar, BarChart3, User, Menu, X,
+  LogOut, Home, Wrench, Users, Calendar, User, Menu, X,
   FileBarChart, Shield, ChevronDown, ChevronRight, Package, Boxes, ClipboardList, KeyRound, ScrollText, History,
-  MapPinned, Building2, Loader2
+  MapPinned, Building2
 } from 'lucide-react';
 import ClientesModule from './ClientesModule';
 import OrdensModule from './OrdensModule';
+import HomeDashboard from './HomeDashboard';
 import AgendaTecnica from './agenda/AgendaTecnica';
 import AtendimentoTecnicoMobile from './atendimento/AtendimentoTecnicoMobile';
 import {
@@ -171,8 +172,6 @@ export default function Dashboard({ user, onLogout, onUserUpdate, pathToModule, 
   const [openGroups, setOpenGroups] = useState({ relatorios: true, admin: true });
   const [menuOpen, setMenuOpen] = useState(false);
   const [empresa, setEmpresa] = useState(null);
-  const [kpis, setKpis] = useState({ os_abertas: null, clientes: null, agenda_hoje: null });
-  const [kpisLoading, setKpisLoading] = useState(true);
 
   const goTo = (id) => {
     const path = moduleToPath?.(id) || '/';
@@ -194,28 +193,15 @@ export default function Dashboard({ user, onLogout, onUserUpdate, pathToModule, 
     }
   }, []);
 
-  const loadKpis = useCallback(async () => {
-    setKpisLoading(true);
-    try {
-      const data = await apiFetch('/dashboard/kpis');
-      setKpis(data);
-    } catch (_) {
-      setKpis({ os_abertas: 0, clientes: 0, agenda_hoje: 0 });
-    } finally {
-      setKpisLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     loadEmpresa();
-    loadKpis();
     const onUpdated = (e) => {
       if (e.detail) setEmpresa((prev) => ({ ...prev, ...e.detail }));
       else loadEmpresa();
     };
     window.addEventListener('knoll:empresa-updated', onUpdated);
     return () => window.removeEventListener('knoll:empresa-updated', onUpdated);
-  }, [loadEmpresa, loadKpis]);
+  }, [loadEmpresa]);
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -251,48 +237,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate, pathToModule, 
   const renderContent = () => {
     switch (activeModule) {
       case 'home':
-        return (
-          <div className="animate-in fade-in duration-500">
-            <div className="kpi-grid mb-6 sm:mb-8">
-              <div className="card-surface p-4 sm:p-6 flex items-center gap-4">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0"><Wrench size={26} /></div>
-                <div>
-                  <p className="text-sm text-slate-500 font-semibold mb-0.5">O.S. Abertas</p>
-                  <h3 className="text-2xl sm:text-3xl font-black text-slate-800">
-                    {kpisLoading ? <Loader2 className="animate-spin inline" size={22} /> : (kpis.os_abertas ?? '—')}
-                  </h3>
-                </div>
-              </div>
-              <div className="card-surface p-4 sm:p-6 flex items-center gap-4">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0"><Users size={26} /></div>
-                <div>
-                  <p className="text-sm text-slate-500 font-semibold mb-0.5">Clientes</p>
-                  <h3 className="text-2xl sm:text-3xl font-black text-slate-800">
-                    {kpisLoading ? <Loader2 className="animate-spin inline" size={22} /> : (kpis.clientes ?? '—')}
-                  </h3>
-                </div>
-              </div>
-              <div className="card-surface p-4 sm:p-6 flex items-center gap-4 sm:col-span-2 lg:col-span-1">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center shrink-0"><Calendar size={26} /></div>
-                <div>
-                  <p className="text-sm text-slate-500 font-semibold mb-0.5">Agenda Hoje</p>
-                  <h3 className="text-2xl sm:text-3xl font-black text-slate-800">
-                    {kpisLoading ? <Loader2 className="animate-spin inline" size={22} /> : (kpis.agenda_hoje ?? '—')}
-                  </h3>
-                </div>
-              </div>
-            </div>
-            <div className="card-surface p-6 sm:p-10 text-center">
-              <BarChart3 size={40} className="text-blue-500 mx-auto mb-4" />
-              <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-2">Painel Interativo</h3>
-              <p className="text-slate-500 text-sm sm:text-base">Use o menu para Agenda Técnica, Atendimento Mobile, Relatórios e Administração.</p>
-              <div className="mt-5 flex flex-col sm:flex-row gap-2 justify-center">
-                <button type="button" className="btn-primary" onClick={() => goTo('agenda')}>Abrir Agenda</button>
-                <button type="button" className="btn-secondary" onClick={() => goTo('atendimento')}>Atendimento Mobile</button>
-              </div>
-            </div>
-          </div>
-        );
+        return <HomeDashboard onNavigate={goTo} />;
       case 'clientes':
         return <ClientesModule />;
       case 'ordens':

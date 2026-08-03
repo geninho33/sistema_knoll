@@ -5,6 +5,21 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+function toIsoLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function startOfWeekMonday(ref) {
+  const d = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
 // GET /clientes (Search + Pagination)
 router.get('/clientes', async (req, res) => {
   try {
@@ -454,10 +469,40 @@ router.post('/produtos', async (req, res) => {
 // GET /dashboard/kpis
 router.get('/dashboard/kpis', async (req, res) => {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const todayDate = new Date();
+    const today = toIsoLocal(todayDate);
+    const monthStart = `${today.slice(0, 7)}-01`;
+
     const [[osAbertas]] = await db.query(
       `SELECT COUNT(*) AS total FROM knoll_servicos
-       WHERE IN_STATUS IS NULL OR IN_STATUS NOT IN ('Encerrado', 'Cancelado', 'Concluído')`
+       WHERE IN_STATUS IS NULL
+          OR TRIM(IN_STATUS) = ''
+          OR IN_STATUS IN ('Aberto', 'Aguardando Atendimento')`
+    );
+    const [[osAndamento]] = await db.query(
+      `SELECT COUNT(*) AS total FROM knoll_servicos
+       WHERE IN_STATUS IN ('Em atendimento', 'Aguardando Peça')`
+    );
+    const [[osConcluidas]] = await db.query(
+      `SELECT COUNT(*) AS total FROM knoll_servicos
+       WHERE IN_STATUS IN ('Encerrado', 'Concluído')
+         AND (
+           (DT_SADA IS NOT NULL AND DT_SADA NOT LIKE '0000%' AND DATE(DT_SADA) >= ? AND DATE(DT_SADA) <= ?)
+           OR ((DT_SADA IS NULL OR DT_SADA LIKE '0000%') AND DATE(DT_ENTR) >= ? AND DATE(DT_ENTR) <= ?)
+         )`,
+      [monthStart, today, monthStart, today]
+    );
+    const [[faturamento]] = await db.query(
+      `SELECT COALESCE(SUM(
+          CASE
+            WHEN VAL_TOT IS NULL OR VAL_TOT = 0 THEN COALESCE(VAL_SER,0) + COALESCE(VAL_PRO,0) - COALESCE(VAL_DES,0)
+            ELSE VAL_TOT
+          END
+        ), 0) AS total
+       FROM knoll_servicos
+       WHERE (IN_STATUS IS NULL OR IN_STATUS NOT IN ('Cancelado'))
+         AND DATE(DT_ENTR) >= ? AND DATE(DT_ENTR) <= ?`,
+      [monthStart, today]
     );
     const [[clientes]] = await db.query(`SELECT COUNT(*) AS total FROM knoll_clientes`);
     const [[agendaHoje]] = await db.query(
@@ -466,10 +511,132 @@ router.get('/dashboard/kpis', async (req, res) => {
          AND (IN_STATUS IS NULL OR IN_STATUS NOT IN ('Cancelado'))`,
       [today]
     );
+
     res.json({
       os_abertas: Number(osAbertas.total) || 0,
+      os_andamento: Number(osAndamento.total) || 0,
+      os_concluidas: Number(osConcluidas.total) || 0,
+      faturamento_mes: Number(faturamento.total) || 0,
       clientes: Number(clientes.total) || 0,
       agenda_hoje: Number(agendaHoje.total) || 0,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /dashboard/overview — gráficos + agenda semanal
+router.get('/dashboard/overview', async (req, res) => {
+  try {
+    const today = new Date();
+
+    // Volume últimos 12 meses (por mês de abertura)
+    const [volumeRows] = await db.query(
+      `SELECT DATE_FORMAT(DT_ENTR, '%Y-%m') AS periodo, COUNT(*) AS total
+       FROM knoll_servicos
+       WHERE DT_ENTR IS NOT NULL
+         AND CAST(DT_ENTR AS CHAR) NOT LIKE '0000%'
+         AND DT_ENTR >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 11 MONTH)
+         AND (IN_STATUS IS NULL OR IN_STATUS NOT IN ('Cancelado'))
+       GROUP BY DATE_FORMAT(DT_ENTR, '%Y-%m')
+       ORDER BY periodo ASC`
+    );
+
+    // Ranking técnicos (90 dias)
+    const [tecnicos] = await db.query(
+      `SELECT COALESCE(f.IDFUN, s.IDFUN) AS IDFUN,
+              COALESCE(NULLIF(TRIM(f.NOME), ''), CONCAT('Tecnico #', s.IDFUN)) AS NOME,
+              COUNT(*) AS total
+       FROM knoll_servicos s
+       LEFT JOIN knoll_funcionario f ON f.IDFUN = s.IDFUN
+       WHERE s.IDFUN IS NOT NULL AND s.IDFUN <> 0
+         AND s.DT_ENTR IS NOT NULL
+         AND CAST(s.DT_ENTR AS CHAR) NOT LIKE '0000%'
+         AND s.DT_ENTR >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)
+         AND (s.IN_STATUS IS NULL OR s.IN_STATUS NOT IN ('Cancelado'))
+       GROUP BY COALESCE(f.IDFUN, s.IDFUN), COALESCE(NULLIF(TRIM(f.NOME), ''), CONCAT('Tecnico #', s.IDFUN))
+       ORDER BY total DESC
+       LIMIT 8`
+    );
+
+    // Ranking regiões / municípios
+    const [regioes] = await db.query(
+      `SELECT COALESCE(NULLIF(TRIM(c.MUNICIPIO), ''), 'Sem municipio') AS MUNICIPIO,
+              COALESCE(NULLIF(TRIM(c.ESTADO), ''), '') AS ESTADO,
+              COUNT(*) AS total
+       FROM knoll_servicos s
+       LEFT JOIN knoll_clientes c ON c.IDCLI = s.IDCLI
+       WHERE s.DT_ENTR IS NOT NULL
+         AND CAST(s.DT_ENTR AS CHAR) NOT LIKE '0000%'
+         AND s.DT_ENTR >= DATE_SUB(CURDATE(), INTERVAL 180 DAY)
+         AND (s.IN_STATUS IS NULL OR s.IN_STATUS NOT IN ('Cancelado'))
+       GROUP BY COALESCE(NULLIF(TRIM(c.MUNICIPIO), ''), 'Sem municipio'),
+                COALESCE(NULLIF(TRIM(c.ESTADO), ''), '')
+       ORDER BY total DESC
+       LIMIT 10`
+    );
+
+    // Semana (segunda a domingo) — week_start=YYYY-MM-DD opcional
+    let monday;
+    if (req.query.week_start) {
+      const parts = String(req.query.week_start).slice(0, 10).split('-').map(Number);
+      if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+        monday = startOfWeekMonday(new Date(parts[0], parts[1] - 1, parts[2]));
+      }
+    }
+    if (!monday) {
+      monday = startOfWeekMonday(today);
+    }
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const weekStart = toIsoLocal(monday);
+    const weekEnd = toIsoLocal(sunday);
+    const todayStr = toIsoLocal(today);
+
+    const [agenda] = await db.query(
+      `SELECT s.IDSER, s.IDCLI, s.IDFUN, s.IN_STATUS, s.EQUIPAMENTO, s.DEFEITO,
+              s.DT_SADA, s.HR_SADA, s.HR_SERV,
+              c.NOME AS CLIENTE_NOME, c.MUNICIPIO,
+              f.NOME AS TECNICO_NOME
+       FROM knoll_servicos s
+       LEFT JOIN knoll_clientes c ON c.IDCLI = s.IDCLI
+       LEFT JOIN knoll_funcionario f ON f.IDFUN = s.IDFUN
+       WHERE s.DT_SADA IS NOT NULL
+         AND CAST(s.DT_SADA AS CHAR) NOT LIKE '0000%'
+         AND s.DT_SADA >= ?
+         AND s.DT_SADA < DATE_ADD(?, INTERVAL 1 DAY)
+         AND (s.IN_STATUS IS NULL OR s.IN_STATUS NOT IN ('Cancelado'))
+       ORDER BY s.DT_SADA ASC, s.HR_SADA ASC, s.IDSER ASC`,
+      [weekStart, weekEnd]
+    );
+
+    // Completar meses faltantes no volume
+    const volumeMap = Object.fromEntries(volumeRows.map((r) => [r.periodo, Number(r.total) || 0]));
+    const volume = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      volume.push({ periodo: key, total: volumeMap[key] || 0 });
+    }
+
+    res.json({
+      volume,
+      tecnicos: tecnicos.map((t) => ({
+        id: t.IDFUN,
+        nome: String(t.NOME || '').replace(/^Tecnico #/, 'Técnico #'),
+        total: Number(t.total) || 0,
+      })),
+      regioes: regioes.map((r) => ({
+        municipio: r.MUNICIPIO === 'Sem municipio' ? 'Não informado' : r.MUNICIPIO,
+        estado: r.ESTADO,
+        total: Number(r.total) || 0,
+      })),
+      semana: {
+        inicio: weekStart,
+        fim: weekEnd,
+        hoje: todayStr,
+        itens: agenda,
+      },
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

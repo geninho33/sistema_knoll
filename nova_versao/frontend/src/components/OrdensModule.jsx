@@ -1,10 +1,11 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Loader2, Trash2 } from 'lucide-react';
 import Modal from './ui/Modal';
 import SearchCombobox from './ui/SearchCombobox';
 import { Pagination, LoadingBlock, EmptyState, PageHeader } from './ui/Pagination';
 import { BotaoImprimirOS } from './ordens/OrdemServicoPrint';
 import { apiFetch, buildQuery } from '../utils/api';
+import { formatMoney, roundMoney, toNumber } from '../utils/money';
 import {
   searchClientes,
   searchTecnicos,
@@ -32,11 +33,13 @@ export default function OrdensModule() {
   const [tecnicoLabel, setTecnicoLabel] = useState('');
   const [equipLabel, setEquipLabel] = useState('');
   const [itemQtde, setItemQtde] = useState(1);
+  const [itemPreco, setItemPreco] = useState('');
   const [pendingPeca, setPendingPeca] = useState(null);
   const [pendingProduto, setPendingProduto] = useState(null);
   const [pecaLabel, setPecaLabel] = useState('');
   const [produtoLabel, setProdutoLabel] = useState('');
   const [savingItem, setSavingItem] = useState(false);
+  const [itemTipoAtivo, setItemTipoAtivo] = useState('peca'); // peca | produto
 
   const getInitialForm = () => ({
     IDCLI: '', EQUIPAMENTO: '', DEFEITO: '', IN_STATUS: 'Aberto',
@@ -97,6 +100,8 @@ export default function OrdensModule() {
     setPendingProduto(null);
     setDraftItens([]);
     setItensOs([]);
+    setItemQtde(1);
+    setItemPreco('');
   };
 
   const handleSave = async (e) => {
@@ -206,17 +211,49 @@ export default function OrdensModule() {
 
   const visibleItens = editingOrdem ? itensOs : draftItens;
 
+  const launchSubtotal = useMemo(() => {
+    const q = toNumber(itemQtde) || 0;
+    const p = toNumber(itemPreco) || 0;
+    return roundMoney(q * p);
+  }, [itemQtde, itemPreco]);
+
+  const itensTotal = useMemo(() => {
+    return roundMoney(
+      visibleItens.reduce((acc, item) => {
+        const line = toNumber(item.VAL_TOT ?? toNumber(item.QTDE) * toNumber(item.VAL_UNI));
+        return acc + line;
+      }, 0)
+    );
+  }, [visibleItens]);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    setFormData((prev) => {
+      const nextPro = itensTotal;
+      const nextTot = roundMoney(toNumber(prev.VAL_SER) + nextPro - toNumber(prev.VAL_DES));
+      if (toNumber(prev.VAL_PRO) === nextPro && toNumber(prev.VAL_TOT) === nextTot) return prev;
+      return { ...prev, VAL_PRO: nextPro, VAL_TOT: nextTot };
+    });
+  }, [itensTotal, modalOpen]);
+
+  const fillPrecoFromOpt = (opt) => {
+    const venda = opt?.raw?.VENDA;
+    setItemPreco(venda != null && venda !== '' ? String(Number(venda) || 0) : '');
+  };
+
   const addItemFromOption = async (opt, tipo) => {
     if (!opt) return;
     const raw = opt.raw || {};
+    const qtde = toNumber(itemQtde) || 1;
+    const valUni = roundMoney(itemPreco !== '' ? toNumber(itemPreco) : toNumber(raw.VENDA));
     const item = {
       IDPRO: opt.value,
       DESCRICAO: opt.label,
       UNIDADE: raw.UNIDADE || 'UN',
-      QTDE: Number(itemQtde) || 1,
-      VAL_UNI: Number(raw.VENDA) || 0,
+      QTDE: qtde,
+      VAL_UNI: valUni,
       PS: tipo === 'peca' ? 'P' : (raw.PS || 'S'),
-      VAL_TOT: ((Number(itemQtde) || 1) * (Number(raw.VENDA) || 0)).toFixed(2),
+      VAL_TOT: roundMoney(qtde * valUni),
     };
 
     if (editingOrdem) {
@@ -252,6 +289,60 @@ export default function OrdensModule() {
       setProdutoLabel('');
     }
     setItemQtde(1);
+    setItemPreco('');
+  };
+
+  const persistItem = async (item) => {
+    if (!editingOrdem) {
+      setDraftItens((prev) =>
+        prev.map((i) => (Number(i.IDPRO) === Number(item.IDPRO) ? item : i))
+      );
+      return;
+    }
+    setSavingItem(true);
+    try {
+      const res = await apiFetch(`/ordens/${editingOrdem.IDSER}/itens`, {
+        method: 'POST',
+        body: JSON.stringify(item),
+      });
+      setItensOs(res.data || []);
+    } catch (err) {
+      setError(err.message || 'Falha ao atualizar item');
+    } finally {
+      setSavingItem(false);
+    }
+  };
+
+  const updateItemField = (idpro, field, value) => {
+    const list = editingOrdem ? itensOs : draftItens;
+    const current = list.find((i) => Number(i.IDPRO) === Number(idpro));
+    if (!current) return;
+    const qtde = field === 'QTDE' ? (toNumber(value) || 0) : toNumber(current.QTDE);
+    const valUni = field === 'VAL_UNI' ? toNumber(value) : toNumber(current.VAL_UNI);
+    const next = {
+      ...current,
+      QTDE: field === 'QTDE' ? value : current.QTDE,
+      VAL_UNI: field === 'VAL_UNI' ? value : current.VAL_UNI,
+      VAL_TOT: roundMoney(qtde * valUni),
+    };
+    if (editingOrdem) {
+      setItensOs((prev) => prev.map((i) => (Number(i.IDPRO) === Number(idpro) ? next : i)));
+    } else {
+      setDraftItens((prev) => prev.map((i) => (Number(i.IDPRO) === Number(idpro) ? next : i)));
+    }
+  };
+
+  const commitItemEdit = (idpro) => {
+    const list = editingOrdem ? itensOs : draftItens;
+    const current = list.find((i) => Number(i.IDPRO) === Number(idpro));
+    if (!current) return;
+    const item = {
+      ...current,
+      QTDE: toNumber(current.QTDE) || 1,
+      VAL_UNI: roundMoney(current.VAL_UNI),
+      VAL_TOT: roundMoney((toNumber(current.QTDE) || 1) * toNumber(current.VAL_UNI)),
+    };
+    persistItem(item);
   };
 
   const removeItem = async (idpro) => {
@@ -571,6 +662,8 @@ export default function OrdensModule() {
                 onChange={(v, opt) => {
                   setPendingPeca(opt);
                   setPecaLabel(opt?.label || '');
+                  setItemTipoAtivo('peca');
+                  fillPrecoFromOpt(opt);
                 }}
                 createLabel="Nova peça"
                 createFields={[
@@ -582,6 +675,8 @@ export default function OrdensModule() {
                   const opt = await createProdutoQuick(form, 'peca');
                   setPendingPeca(opt);
                   setPecaLabel(opt.label);
+                  setItemTipoAtivo('peca');
+                  fillPrecoFromOpt(opt);
                   return opt;
                 }}
                 placeholder="Buscar peça..."
@@ -595,6 +690,8 @@ export default function OrdensModule() {
                 onChange={(v, opt) => {
                   setPendingProduto(opt);
                   setProdutoLabel(opt?.label || '');
+                  setItemTipoAtivo('produto');
+                  fillPrecoFromOpt(opt);
                 }}
                 createLabel="Novo produto"
                 createFields={[
@@ -606,6 +703,8 @@ export default function OrdensModule() {
                   const opt = await createProdutoQuick(form, 'produto');
                   setPendingProduto(opt);
                   setProdutoLabel(opt.label);
+                  setItemTipoAtivo('produto');
+                  fillPrecoFromOpt(opt);
                   return opt;
                 }}
                 placeholder="Buscar produto..."
@@ -614,32 +713,51 @@ export default function OrdensModule() {
                 <label className="field-label">Quantidade</label>
                 <input
                   type="number"
-                  min="1"
-                  step="1"
-                  className="field-input"
+                  min="0.01"
+                  step="0.01"
+                  className="field-input text-right font-mono"
                   value={itemQtde}
                   onChange={(e) => setItemQtde(e.target.value)}
                 />
               </div>
-              <div className="flex items-end gap-2">
-                <button
-                  type="button"
-                  className="btn-secondary flex-1"
-                  disabled={!pendingPeca || savingItem}
-                  onClick={() => addItemFromOption(pendingPeca, 'peca')}
-                >
-                  {savingItem ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
-                  Add peça
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary flex-1"
-                  disabled={!pendingProduto || savingItem}
-                  onClick={() => addItemFromOption(pendingProduto, 'produto')}
-                >
-                  {savingItem ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
-                  Add produto
-                </button>
+              <div>
+                <label className="field-label">Preço unitário</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  className="field-input text-right font-mono"
+                  value={itemPreco}
+                  placeholder="0,00"
+                  onChange={(e) => setItemPreco(e.target.value)}
+                />
+              </div>
+              <div className="sm:col-span-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5">
+                <div className="text-sm text-slate-600">
+                  Subtotal do lançamento:{' '}
+                  <span className="font-bold text-slate-900 font-mono">{formatMoney(launchSubtotal)}</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="btn-secondary flex-1 sm:flex-none"
+                    disabled={!pendingPeca || savingItem}
+                    onClick={() => addItemFromOption(pendingPeca, 'peca')}
+                  >
+                    {savingItem && itemTipoAtivo === 'peca' ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
+                    Add peça
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary flex-1 sm:flex-none"
+                    disabled={!pendingProduto || savingItem}
+                    onClick={() => addItemFromOption(pendingProduto, 'produto')}
+                  >
+                    {savingItem && itemTipoAtivo === 'produto' ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
+                    Add produto
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -650,16 +768,48 @@ export default function OrdensModule() {
                 <div className="cards-mobile space-y-2">
                   {visibleItens.length === 0 && <p className="text-xs text-slate-500 text-center py-2">Nenhum item lançado.</p>}
                   {visibleItens.map((item) => (
-                    <div key={`${item.IDPRO}-${item.DESCRICAO}`} className="bg-slate-50 rounded-lg p-3 text-sm flex justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-slate-800">{item.DESCRICAO}</p>
-                        <p className="text-slate-500 text-xs mt-1">
-                          Cód. {item.IDPRO} · Qtde {item.QTDE} · R$ {Number(item.VAL_TOT || 0).toFixed(2)}
-                        </p>
+                    <div key={`${item.IDPRO}-${item.DESCRICAO}`} className="bg-slate-50 rounded-lg p-3 text-sm space-y-2">
+                      <div className="flex justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-800">{item.DESCRICAO}</p>
+                          <p className="text-slate-500 text-xs mt-0.5">Cód. {item.IDPRO}</p>
+                        </div>
+                        <button type="button" className="btn-icon text-red-600 shrink-0" onClick={() => removeItem(item.IDPRO)} aria-label="Remover">
+                          <Trash2 size={16} />
+                        </button>
                       </div>
-                      <button type="button" className="btn-icon text-red-600" onClick={() => removeItem(item.IDPRO)} aria-label="Remover">
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-[11px] text-slate-500 font-semibold">Qtde</label>
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            className="field-input text-right font-mono text-sm py-1.5 min-h-0"
+                            value={item.QTDE}
+                            onChange={(e) => updateItemField(item.IDPRO, 'QTDE', e.target.value)}
+                            onBlur={() => commitItemEdit(item.IDPRO)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500 font-semibold">Unitário</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="field-input text-right font-mono text-sm py-1.5 min-h-0"
+                            value={item.VAL_UNI}
+                            onChange={(e) => updateItemField(item.IDPRO, 'VAL_UNI', e.target.value)}
+                            onBlur={() => commitItemEdit(item.IDPRO)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500 font-semibold">Subtotal</label>
+                          <p className="field-input text-right font-mono text-sm py-1.5 min-h-0 bg-blue-50 border-blue-100 font-bold text-blue-700 flex items-center justify-end">
+                            {formatMoney(item.VAL_TOT ?? toNumber(item.QTDE) * toNumber(item.VAL_UNI))}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -669,19 +819,43 @@ export default function OrdensModule() {
                       <tr>
                         <th className="p-3">Código</th>
                         <th className="p-3">Descrição</th>
-                        <th className="p-3 text-right">Qtde</th>
-                        <th className="p-3 text-right">Total</th>
+                        <th className="p-3 text-right w-24">Qtde</th>
+                        <th className="p-3 text-right w-32">Unitário</th>
+                        <th className="p-3 text-right w-32">Subtotal</th>
                         <th className="p-3 text-right">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {visibleItens.length === 0 && <tr><td colSpan="5" className="p-4 text-center text-slate-500 text-xs">Nenhum item.</td></tr>}
+                      {visibleItens.length === 0 && <tr><td colSpan="6" className="p-4 text-center text-slate-500 text-xs">Nenhum item.</td></tr>}
                       {visibleItens.map((item) => (
                         <tr key={`${item.IDPRO}-${item.DESCRICAO}`} className="border-b border-slate-100">
                           <td className="p-3 font-mono">{item.IDPRO}</td>
                           <td className="p-3">{item.DESCRICAO}</td>
-                          <td className="p-3 text-right">{item.QTDE}</td>
-                          <td className="p-3 text-right font-bold text-blue-700">R$ {Number(item.VAL_TOT || 0).toFixed(2)}</td>
+                          <td className="p-2">
+                            <input
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              className="field-input text-right font-mono text-sm py-1.5 min-h-0"
+                              value={item.QTDE}
+                              onChange={(e) => updateItemField(item.IDPRO, 'QTDE', e.target.value)}
+                              onBlur={() => commitItemEdit(item.IDPRO)}
+                            />
+                          </td>
+                          <td className="p-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="field-input text-right font-mono text-sm py-1.5 min-h-0"
+                              value={item.VAL_UNI}
+                              onChange={(e) => updateItemField(item.IDPRO, 'VAL_UNI', e.target.value)}
+                              onBlur={() => commitItemEdit(item.IDPRO)}
+                            />
+                          </td>
+                          <td className="p-3 text-right font-bold text-blue-700 font-mono">
+                            {formatMoney(item.VAL_TOT ?? toNumber(item.QTDE) * toNumber(item.VAL_UNI))}
+                          </td>
                           <td className="p-3 text-right">
                             <button type="button" className="btn-icon text-red-600" onClick={() => removeItem(item.IDPRO)} aria-label="Remover">
                               <Trash2 size={16} />
@@ -690,7 +864,22 @@ export default function OrdensModule() {
                         </tr>
                       ))}
                     </tbody>
+                    <tfoot>
+                      <tr className="bg-blue-50/80 border-t border-blue-100">
+                        <td colSpan="4" className="p-3 text-right text-sm font-semibold text-slate-700">
+                          Total acumulado das peças/produtos
+                        </td>
+                        <td className="p-3 text-right font-black text-blue-800 font-mono text-base">
+                          {formatMoney(itensTotal)}
+                        </td>
+                        <td />
+                      </tr>
+                    </tfoot>
                   </table>
+                </div>
+                <div className="cards-mobile mt-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2.5 flex justify-between items-center">
+                  <span className="text-sm font-semibold text-slate-700">Total acumulado</span>
+                  <span className="font-black text-blue-800 font-mono">{formatMoney(itensTotal)}</span>
                 </div>
               </>
             )}

@@ -1,0 +1,12 @@
+# Ignorado no build Docker (context = raiz do repo via compose)
+node_modules
+nova_versao/frontend/node_modules
+nova_versao/backend/node_modules
+nova_versao/frontend/dist
+nova_versao/backend/uploads
+.git
+**/.env
+**/.env.*
+!**/.env.example
+**/tmp-*
+**/.DS_Store

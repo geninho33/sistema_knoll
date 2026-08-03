@@ -1,0 +1,73 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: knoll-mysql
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_change_me}
+      MYSQL_DATABASE: ${DB_NAME:-knoll}
+      MYSQL_USER: ${DB_USER:-knoll}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-knoll_change_me}
+    ports:
+      - "${MYSQL_HOST_PORT:-3308}:3306"
+    volumes:
+      - knoll_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root_change_me}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - knoll_net
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    container_name: knoll-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-knoll}
+      DB_PASSWORD: ${DB_PASSWORD:-knoll_change_me}
+      DB_NAME: ${DB_NAME:-knoll}
+      JWT_SECRET: ${JWT_SECRET:-troque_este_segredo_jwt}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8089}
+    ports:
+      - "${BACKEND_HOST_PORT:-3300}:3000"
+    volumes:
+      - knoll_uploads:/app/uploads
+    networks:
+      - knoll_net
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.frontend
+    container_name: knoll-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_HOST_PORT:-8089}:80"
+    networks:
+      - knoll_net
+
+volumes:
+  knoll_mysql_data:
+  knoll_uploads:
+
+networks:
+  knoll_net:
+    driver: bridge

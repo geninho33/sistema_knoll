@@ -5,18 +5,27 @@ const DEV_ORIGINS = [
   'http://127.0.0.1:5173',
   'http://localhost:4173',
   'http://127.0.0.1:4173',
+  'http://localhost:8089',
+  'http://127.0.0.1:8089',
 ];
 
+function parseExtraOrigins() {
+  const raw = process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '';
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 function corsMiddleware() {
+  const allowed = new Set([...DEV_ORIGINS, ...parseExtraOrigins()]);
+
   return cors({
     origin(origin, callback) {
-      // Permite tools sem Origin (curl/Postman) e origins de desenvolvimento
-      if (!origin || DEV_ORIGINS.includes(origin) || process.env.NODE_ENV !== 'production') {
-        return callback(null, true);
-      }
-      if (DEV_ORIGINS.includes(origin)) {
-        return callback(null, true);
-      }
+      // Sem Origin (curl/Postman/healthchecks) ou same-origin via proxy nginx
+      if (!origin) return callback(null, true);
+      if (process.env.NODE_ENV !== 'production') return callback(null, true);
+      if (allowed.has(origin) || allowed.has('*')) return callback(null, true);
       return callback(new Error(`CORS bloqueado para origem: ${origin}`));
     },
     credentials: true,
