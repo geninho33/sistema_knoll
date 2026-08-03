@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Loader2 } from 'lucide-react';
+import { useCallback, useState, useEffect } from 'react';
+import { Search, Plus, Edit2 } from 'lucide-react';
 import Modal from './ui/Modal';
+import CepInput from './ui/CepInput';
 import { Pagination, LoadingBlock, EmptyState, PageHeader } from './ui/Pagination';
 import { apiFetch, buildQuery } from '../utils/api';
+import { formatCep } from '../utils/viacep';
+
+const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
 export default function ClientesModule() {
   const [data, setData] = useState({ data: [], totalPages: 1, page: 1, total: 0 });
@@ -63,27 +67,57 @@ export default function ClientesModule() {
     }
   };
 
-  const openEdit = (client) => {
+  const openEdit = async (client) => {
     setEditingClient(client);
-    setFormData({
-      NOME: client.NOME || '',
-      RAZAO: client.RAZAO || '',
-      TELEFONE: client.TELEFONE || '',
-      CELULAR: client.CELULAR || '',
-      FAX: client.FAX || '',
-      EMAIL: client.EMAIL || '',
-      CEP: client.CEP || '',
-      ENDERECO: client.ENDERECO || '',
-      COMPLEMENTO: client.COMPLEMENTO || '',
-      BAIRRO: client.BAIRRO || '',
-      MUNICIPIO: client.MUNICIPIO || '',
-      ESTADO: client.ESTADO || 'SC',
-      CPF: client.CPF || client.CGC || '',
-    });
     setModalOpen(true);
+    try {
+      const full = await apiFetch(`/clientes/${client.IDCLI}`);
+      setFormData({
+        NOME: full.NOME || '',
+        RAZAO: full.RAZAO || '',
+        TELEFONE: full.TELEFONE || '',
+        CELULAR: full.CELULAR || '',
+        FAX: full.FAX || '',
+        EMAIL: full.EMAIL || '',
+        CEP: formatCep(full.CEP || ''),
+        ENDERECO: full.ENDERECO || '',
+        COMPLEMENTO: full.COMPLEMENTO || '',
+        BAIRRO: full.BAIRRO || '',
+        MUNICIPIO: full.MUNICIPIO || '',
+        ESTADO: full.ESTADO || 'SC',
+        CPF: full.CPF || full.CGC || '',
+      });
+    } catch {
+      setFormData({
+        NOME: client.NOME || '',
+        RAZAO: client.RAZAO || '',
+        TELEFONE: client.TELEFONE || '',
+        CELULAR: client.CELULAR || '',
+        FAX: client.FAX || '',
+        EMAIL: client.EMAIL || '',
+        CEP: formatCep(client.CEP || ''),
+        ENDERECO: client.ENDERECO || '',
+        COMPLEMENTO: client.COMPLEMENTO || '',
+        BAIRRO: client.BAIRRO || '',
+        MUNICIPIO: client.MUNICIPIO || '',
+        ESTADO: client.ESTADO || 'SC',
+        CPF: client.CPF || client.CGC || '',
+      });
+    }
   };
 
   const set = (key) => (e) => setFormData({ ...formData, [key]: e.target.value });
+
+  const onCepAddress = useCallback((addr) => {
+    setFormData((prev) => ({
+      ...prev,
+      ENDERECO: addr.logradouro || prev.ENDERECO,
+      BAIRRO: addr.bairro || prev.BAIRRO,
+      MUNICIPIO: addr.municipio || prev.MUNICIPIO,
+      ESTADO: addr.uf || prev.ESTADO,
+      COMPLEMENTO: prev.COMPLEMENTO || addr.complemento || '',
+    }));
+  }, []);
 
   return (
     <div className="animate-in fade-in duration-500 pb-6">
@@ -100,6 +134,10 @@ export default function ClientesModule() {
           </button>
         }
       />
+
+      {error && (
+        <p className="mb-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
+      )}
 
       <div className="filter-panel mb-4">
         <div className="relative">
@@ -120,7 +158,6 @@ export default function ClientesModule() {
           <LoadingBlock />
         ) : (
           <>
-            {/* Mobile cards */}
             <div className="cards-mobile p-3">
               {(!data.data || data.data.length === 0) && <EmptyState />}
               {data.data?.map((c) => (
@@ -140,7 +177,6 @@ export default function ClientesModule() {
               ))}
             </div>
 
-            {/* Desktop table */}
             <div className="table-desktop overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200 sticky top-0">
@@ -223,23 +259,13 @@ export default function ClientesModule() {
           <fieldset className="p-3 sm:p-4 border border-slate-200 rounded-xl">
             <legend className="px-2 text-xs font-bold text-blue-600 uppercase">Contato e Endereço</legend>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="field-label" htmlFor="cli-tel">Telefone</label>
-                <input id="cli-tel" type="tel" inputMode="tel" className="field-input" value={formData.TELEFONE} onChange={set('TELEFONE')} />
-              </div>
-              <div>
-                <label className="field-label" htmlFor="cli-cel">Celular</label>
-                <input id="cli-cel" type="tel" inputMode="tel" className="field-input" value={formData.CELULAR} onChange={set('CELULAR')} />
-              </div>
-              <div>
-                <label className="field-label" htmlFor="cli-fax">Fax / Outro</label>
-                <input id="cli-fax" type="tel" className="field-input" value={formData.FAX} onChange={set('FAX')} />
-              </div>
-              <div>
-                <label className="field-label" htmlFor="cli-cep">CEP</label>
-                <input id="cli-cep" inputMode="numeric" className="field-input" value={formData.CEP} onChange={set('CEP')} />
-              </div>
-              <div className="sm:col-span-2">
+              <CepInput
+                id="cli-cep"
+                value={formData.CEP}
+                onChange={(v) => setFormData((prev) => ({ ...prev, CEP: v }))}
+                onAddressFound={onCepAddress}
+              />
+              <div className="sm:col-span-2 sm:col-start-1">
                 <label className="field-label" htmlFor="cli-end">Endereço</label>
                 <input id="cli-end" className="field-input" value={formData.ENDERECO} onChange={set('ENDERECO')} />
               </div>
@@ -258,12 +284,22 @@ export default function ClientesModule() {
               <div>
                 <label className="field-label" htmlFor="cli-uf">UF</label>
                 <select id="cli-uf" className="field-input" value={formData.ESTADO} onChange={set('ESTADO')}>
-                  <option value="SC">SC</option>
-                  <option value="RS">RS</option>
-                  <option value="PR">PR</option>
-                  <option value="SP">SP</option>
-                  <option value="RJ">RJ</option>
+                  {UFS.map((uf) => (
+                    <option key={uf} value={uf}>{uf}</option>
+                  ))}
                 </select>
+              </div>
+              <div>
+                <label className="field-label" htmlFor="cli-tel">Telefone</label>
+                <input id="cli-tel" type="tel" inputMode="tel" className="field-input" value={formData.TELEFONE} onChange={set('TELEFONE')} />
+              </div>
+              <div>
+                <label className="field-label" htmlFor="cli-cel">Celular</label>
+                <input id="cli-cel" type="tel" inputMode="tel" className="field-input" value={formData.CELULAR} onChange={set('CELULAR')} />
+              </div>
+              <div>
+                <label className="field-label" htmlFor="cli-fax">Fax / Outro</label>
+                <input id="cli-fax" type="tel" className="field-input" value={formData.FAX} onChange={set('FAX')} />
               </div>
             </div>
           </fieldset>

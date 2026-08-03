@@ -1,4 +1,5 @@
 import ReportModule from './ReportModule';
+import { searchClientes, searchPecas, searchProdutos, searchTecnicos } from '../../utils/entitySearch';
 
 const formatDate = (v) => {
   if (!v || String(v).startsWith('0000')) return '-';
@@ -10,7 +11,7 @@ export function RelatorioClientes() {
     <ReportModule
       title="Relatório de Clientes"
       endpoint="clientes"
-      initialFilters={{ nome: '', codigo: '', bairro: '', municipio: '', telefone: '' }}
+      initialFilters={{ nome: '', codigo: '', bairro: '', municipio: '', telefone: '', codigo_label: '' }}
       filtersConfig={{
         defaultOrder: 'codigo',
         orderOptions: [
@@ -19,7 +20,13 @@ export function RelatorioClientes() {
         ],
         fields: [
           { name: 'nome', label: 'Nome do cliente', placeholder: 'Buscar por nome...' },
-          { name: 'codigo', label: 'Código', type: 'number', placeholder: 'ID' },
+          {
+            name: 'codigo',
+            label: 'Cliente',
+            type: 'combobox',
+            placeholder: 'Buscar cliente...',
+            fetchOptions: searchClientes,
+          },
           { name: 'bairro', label: 'Bairro' },
           { name: 'municipio', label: 'Município' },
           { name: 'telefone', label: 'Telefone' },
@@ -62,6 +69,7 @@ export function RelatorioServicos() {
       initialFilters={{
         data_ini: '', data_fim: '', cliente: '', peca: '',
         bairro: '', municipio: '', tecnico: '', status: '', situacao: '',
+        cliente_label: '', peca_label: '', tecnico_label: '',
       }}
       filtersConfig={{
         defaultOrder: 'data',
@@ -74,11 +82,29 @@ export function RelatorioServicos() {
         fields: [
           { name: 'data_ini', label: 'Data inicial', type: 'date' },
           { name: 'data_fim', label: 'Data final', type: 'date' },
-          { name: 'cliente', label: 'Cliente', placeholder: 'Nome ou código' },
-          { name: 'peca', label: 'Peça vinculada', placeholder: 'Descrição ou código' },
+          {
+            name: 'cliente',
+            label: 'Cliente',
+            type: 'combobox',
+            placeholder: 'Buscar cliente...',
+            fetchOptions: searchClientes,
+          },
+          {
+            name: 'peca',
+            label: 'Peça vinculada',
+            type: 'combobox',
+            placeholder: 'Buscar peça...',
+            fetchOptions: searchPecas,
+          },
           { name: 'bairro', label: 'Bairro' },
           { name: 'municipio', label: 'Município' },
-          { name: 'tecnico', label: 'Técnico responsável' },
+          {
+            name: 'tecnico',
+            label: 'Técnico responsável',
+            type: 'combobox',
+            placeholder: 'Buscar técnico...',
+            fetchOptions: searchTecnicos,
+          },
           { name: 'status', label: 'Status do serviço', placeholder: 'Ex: Aberto, Encerrado' },
           { name: 'situacao', label: 'Situação (tipo)', placeholder: 'Ex: Garantia' },
         ],
@@ -122,7 +148,7 @@ export function RelatorioPecas() {
     <ReportModule
       title="Relatório de Peças"
       endpoint="pecas"
-      initialFilters={{ codigo: '', descricao: '', categoria: '', fornecedor: '', estoque_min: '', estoque_max: '' }}
+      initialFilters={{ codigo: '', descricao: '', categoria: '', fornecedor: '', estoque_min: '', estoque_max: '', codigo_label: '' }}
       filtersConfig={{
         defaultOrder: 'codigo',
         orderOptions: [
@@ -130,7 +156,13 @@ export function RelatorioPecas() {
           { value: 'descricao', label: 'Descrição' },
         ],
         fields: [
-          { name: 'codigo', label: 'Código', type: 'number' },
+          {
+            name: 'codigo',
+            label: 'Peça',
+            type: 'combobox',
+            placeholder: 'Buscar peça...',
+            fetchOptions: searchPecas,
+          },
           { name: 'descricao', label: 'Descrição' },
           { name: 'categoria', label: 'Categoria / Grupo' },
           { name: 'fornecedor', label: 'Fornecedor / Fabricante' },
@@ -174,7 +206,7 @@ export function RelatorioProdutos() {
     <ReportModule
       title="Relatório de Produtos"
       endpoint="produtos"
-      initialFilters={{ codigo: '', descricao: '', categoria: '', fornecedor: '', estoque_min: '', estoque_max: '', situacao: '' }}
+      initialFilters={{ codigo: '', descricao: '', categoria: '', fornecedor: '', estoque_min: '', estoque_max: '', situacao: '', codigo_label: '' }}
       filtersConfig={{
         defaultOrder: 'codigo',
         orderOptions: [
@@ -182,7 +214,13 @@ export function RelatorioProdutos() {
           { value: 'descricao', label: 'Descrição' },
         ],
         fields: [
-          { name: 'codigo', label: 'Código', type: 'number' },
+          {
+            name: 'codigo',
+            label: 'Produto',
+            type: 'combobox',
+            placeholder: 'Buscar produto...',
+            fetchOptions: (q) => searchProdutos(q, 'produto'),
+          },
           { name: 'descricao', label: 'Descrição' },
           { name: 'categoria', label: 'Categoria / Grupo' },
           { name: 'fornecedor', label: 'Fornecedor / Marca' },

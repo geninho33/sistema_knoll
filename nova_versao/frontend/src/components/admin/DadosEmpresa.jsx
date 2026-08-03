@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Building2, ImagePlus, Loader2, Save, Upload, X } from 'lucide-react';
 import { apiFetch, apiUpload } from '../../utils/api';
+import CepInput from '../ui/CepInput';
+import { formatCep } from '../../utils/viacep';
 
 const EMPTY = {
   nm_empr: '',
@@ -56,7 +58,7 @@ export default function DadosEmpresa({ onEmpresaChange }) {
       try {
         const data = await apiFetch('/configuracao');
         if (cancelled) return;
-        setForm({ ...EMPTY, ...data });
+        setForm({ ...EMPTY, ...data, nu_cep: formatCep(data.nu_cep || '') });
         setPreview(data.logo_url || null);
         notifyEmpresa(data, onChangeRef.current);
       } catch (err) {
@@ -69,6 +71,16 @@ export default function DadosEmpresa({ onEmpresaChange }) {
   }, []);
 
   const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+
+  const onCepAddress = useCallback((addr) => {
+    setForm((f) => ({
+      ...f,
+      nm_logr: addr.logradouro || f.nm_logr,
+      nm_barr: addr.bairro || f.nm_barr,
+      nm_munc: addr.municipio || f.nm_munc,
+      sg_estd: addr.uf || f.sg_estd,
+    }));
+  }, []);
 
   const pickFile = (f) => {
     setError('');
@@ -268,29 +280,33 @@ export default function DadosEmpresa({ onEmpresaChange }) {
         </div>
 
         <div className="grid sm:grid-cols-6 gap-4">
-          <label className="block text-sm sm:col-span-2">
-            <span className="text-slate-600 font-medium">CEP</span>
-            <input className="field-input mt-1" value={form.nu_cep || ''} onChange={(e) => setField('nu_cep', e.target.value)} />
-          </label>
+          <div className="sm:col-span-2">
+            <CepInput
+              id="emp-cep"
+              value={form.nu_cep || ''}
+              onChange={(v) => setField('nu_cep', v)}
+              onAddressFound={onCepAddress}
+            />
+          </div>
           <label className="block text-sm sm:col-span-3">
-            <span className="text-slate-600 font-medium">Logradouro</span>
-            <input className="field-input mt-1" value={form.nm_logr || ''} onChange={(e) => setField('nm_logr', e.target.value)} />
+            <span className="field-label">Logradouro</span>
+            <input className="field-input" value={form.nm_logr || ''} onChange={(e) => setField('nm_logr', e.target.value)} />
           </label>
           <label className="block text-sm sm:col-span-1">
-            <span className="text-slate-600 font-medium">Nº</span>
-            <input className="field-input mt-1" value={form.nu_logr || ''} onChange={(e) => setField('nu_logr', e.target.value)} />
+            <span className="field-label">Nº</span>
+            <input className="field-input" value={form.nu_logr || ''} onChange={(e) => setField('nu_logr', e.target.value)} />
           </label>
           <label className="block text-sm sm:col-span-2">
-            <span className="text-slate-600 font-medium">Bairro</span>
-            <input className="field-input mt-1" value={form.nm_barr || ''} onChange={(e) => setField('nm_barr', e.target.value)} />
+            <span className="field-label">Bairro</span>
+            <input className="field-input" value={form.nm_barr || ''} onChange={(e) => setField('nm_barr', e.target.value)} />
           </label>
           <label className="block text-sm sm:col-span-3">
-            <span className="text-slate-600 font-medium">Cidade</span>
-            <input className="field-input mt-1" value={form.nm_munc || ''} onChange={(e) => setField('nm_munc', e.target.value)} />
+            <span className="field-label">Cidade</span>
+            <input className="field-input" value={form.nm_munc || ''} onChange={(e) => setField('nm_munc', e.target.value)} />
           </label>
           <label className="block text-sm sm:col-span-1">
-            <span className="text-slate-600 font-medium">UF</span>
-            <select className="field-input mt-1" value={form.sg_estd || ''} onChange={(e) => setField('sg_estd', e.target.value)}>
+            <span className="field-label">UF</span>
+            <select className="field-input" value={form.sg_estd || ''} onChange={(e) => setField('sg_estd', e.target.value)}>
               <option value="">—</option>
               {UFS.map((uf) => (
                 <option key={uf} value={uf}>{uf}</option>

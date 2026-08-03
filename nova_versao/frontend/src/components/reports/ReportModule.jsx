@@ -6,6 +6,7 @@ import {
 import { apiFetch, buildQuery } from '../../utils/api';
 import { exportToExcel, exportToPdfPrint, buildTableHtml } from '../../utils/export';
 import { Pagination, LoadingBlock, EmptyState, PageHeader } from '../ui/Pagination';
+import SearchCombobox from '../ui/SearchCombobox';
 
 export default function ReportModule({
   title,
@@ -49,7 +50,10 @@ export default function ReportModule({
     setLoading(true);
     setError('');
     try {
-      const params = { ...filters, page: pageNum, limit: 50 };
+      const clean = Object.fromEntries(
+        Object.entries(filters).filter(([k]) => !k.endsWith('_label'))
+      );
+      const params = { ...clean, page: pageNum, limit: 50 };
       if (exportAll) params.export = '1';
       const data = await apiFetch(`/relatorios/${endpoint}${buildQuery(params)}`);
       if (!exportAll) {
@@ -88,33 +92,58 @@ export default function ReportModule({
     return String(val);
   };
 
-  const renderField = (field) => (
-    <div key={field.name} className={field.span === 2 ? 'sm:col-span-2' : ''}>
-      <label className="field-label" htmlFor={`f-${field.name}`}>{field.label}</label>
-      {field.type === 'select' ? (
-        <select
-          id={`f-${field.name}`}
-          value={filters[field.name] || ''}
-          onChange={(e) => setField(field.name, e.target.value)}
-          className="field-input"
-        >
-          {field.options.map((opt) => (
-            <option key={String(opt.value)} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      ) : (
-        <input
-          id={`f-${field.name}`}
-          type={field.type || 'text'}
-          inputMode={field.type === 'number' ? 'numeric' : undefined}
-          value={filters[field.name] || ''}
-          onChange={(e) => setField(field.name, e.target.value)}
-          placeholder={field.placeholder || ''}
-          className="field-input"
-        />
-      )}
-    </div>
-  );
+  const renderField = (field) => {
+    if (field.type === 'combobox') {
+      return (
+        <div key={field.name} className={field.span === 2 ? 'sm:col-span-2' : ''}>
+          <SearchCombobox
+            id={`f-${field.name}`}
+            label={field.label}
+            value={filters[field.name] || ''}
+            selectedLabel={filters[`${field.name}_label`] || ''}
+            fetchOptions={field.fetchOptions}
+            placeholder={field.placeholder || 'Digite para buscar...'}
+            allowClear
+            onChange={(v, opt) => {
+              setFilters((prev) => ({
+                ...prev,
+                [field.name]: v ?? '',
+                [`${field.name}_label`]: opt?.label || '',
+              }));
+            }}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div key={field.name} className={field.span === 2 ? 'sm:col-span-2' : ''}>
+        <label className="field-label" htmlFor={`f-${field.name}`}>{field.label}</label>
+        {field.type === 'select' ? (
+          <select
+            id={`f-${field.name}`}
+            value={filters[field.name] || ''}
+            onChange={(e) => setField(field.name, e.target.value)}
+            className="field-input"
+          >
+            {field.options.map((opt) => (
+              <option key={String(opt.value)} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            id={`f-${field.name}`}
+            type={field.type || 'text'}
+            inputMode={field.type === 'number' ? 'numeric' : undefined}
+            value={filters[field.name] || ''}
+            onChange={(e) => setField(field.name, e.target.value)}
+            placeholder={field.placeholder || ''}
+            className="field-input"
+          />
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="animate-in fade-in duration-500 pb-6">
