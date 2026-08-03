@@ -101,6 +101,13 @@ router.post('/login', async (req, res) => {
       sysUser = created[0];
     }
 
+    if (!sysUser) {
+      return res.status(500).json({
+        error: 'Erro interno no servidor',
+        detalhe: 'Não foi possível provisionar o usuário no módulo de acesso (sys_usuarios)',
+      });
+    }
+
     const statusOk = !sysUser.deleted_at && ['A', 'ATIVO', 'ACTIVE', '1'].includes(String(sysUser.status || '').trim().toUpperCase());
     if (!statusOk) {
       await registrarAcesso({
@@ -143,7 +150,12 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    const horario = await verificarHorarioAcesso(user.cd_usrs);
+    let horario = { permitido: true };
+    try {
+      horario = await verificarHorarioAcesso(user.cd_usrs);
+    } catch (horErr) {
+      console.error('verificação de horário falhou (liberando acesso):', horErr.message);
+    }
     if (!horario.permitido) {
       await registrarAcesso({
         usuarioId: sysUser.id,
@@ -173,7 +185,13 @@ router.post('/login', async (req, res) => {
       console.warn('JWT_SECRET não definido; usando fallback inseguro. Configure no .env');
     }
 
-    const permissions = await loadUserPermissions(user.cd_usrs);
+    let permissions = [];
+    try {
+      permissions = await loadUserPermissions(user.cd_usrs);
+    } catch (permErr) {
+      console.error('loadUserPermissions falhou:', permErr.message);
+    }
+
     const token = jwt.sign(
       {
         id: user.cd_usrs,
@@ -203,9 +221,17 @@ router.post('/login', async (req, res) => {
       ip,
     });
 
-    const [perfil] = await db.query('SELECT nome FROM sys_perfis WHERE id = ?', [
-      sysUser.perfil_id,
-    ]);
+    let perfilNome = null;
+    try {
+      if (sysUser.perfil_id) {
+        const [perfil] = await db.query('SELECT nome FROM sys_perfis WHERE id = ?', [
+          sysUser.perfil_id,
+        ]);
+        perfilNome = perfil[0]?.nome || null;
+      }
+    } catch (_) {
+      /* ignore */
+    }
 
     res.json({
       message: 'Login bem-sucedido',
@@ -217,7 +243,7 @@ router.post('/login', async (req, res) => {
         login: user.nm_logn,
         email: sysUser.email || user.ds_email,
         perfilId: sysUser.perfil_id,
-        perfilNome: perfil[0]?.nome || null,
+        perfilNome,
         permissions: permissions.map((p) => p.codigo),
       },
     });

@@ -19,13 +19,19 @@ function parseExtraOrigins() {
 
 function corsMiddleware() {
   const allowed = new Set([...DEV_ORIGINS, ...parseExtraOrigins()]);
+  // Por padrão relaxado: frontend e API no mesmo Nginx (IP:8089 → /api).
+  // Defina CORS_STRICT=1 para exigir lista explícita em CORS_ORIGINS.
+  const strict = String(process.env.CORS_STRICT || '').trim() === '1';
 
   return cors({
     origin(origin, callback) {
-      // Sem Origin (curl/Postman/healthchecks) ou same-origin via proxy nginx
       if (!origin) return callback(null, true);
+      if (allowed.has('*') || allowed.has(origin)) return callback(null, true);
       if (process.env.NODE_ENV !== 'production') return callback(null, true);
-      if (allowed.has(origin) || allowed.has('*')) return callback(null, true);
+      if (!strict) {
+        // Reflete a Origin da requisição (adequado ao proxy same-host)
+        return callback(null, true);
+      }
       return callback(new Error(`CORS bloqueado para origem: ${origin}`));
     },
     credentials: true,
