@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { User, ChevronDown, KeyRound, LogOut, UserCircle, Loader2, Save } from 'lucide-react';
 import Modal from './ui/Modal';
 import { apiFetch } from '../utils/api';
@@ -95,7 +95,7 @@ export default function UserMenu({ user, onLogout, onUserUpdate }) {
     }
   };
 
-  const displayName = user?.name || user?.login || 'Usuário';
+  const displayName = user?.name || user?.login || 'UsuÃ¡rio';
 
   return (
     <>
@@ -106,7 +106,7 @@ export default function UserMenu({ user, onLogout, onUserUpdate }) {
           className="flex items-center gap-2 min-h-touch px-2 sm:px-3 rounded-xl hover:bg-slate-100 transition-colors touch-manipulation"
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-label="Menu do usuário"
+          aria-label="Menu do usuÃ¡rio"
         >
           <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
             <User size={18} aria-hidden="true" />
@@ -200,7 +200,7 @@ export default function UserMenu({ user, onLogout, onUserUpdate }) {
                 <input className="field-input bg-slate-50" value={profile?.status === 'A' ? 'Ativo' : 'Inativo'} readOnly />
               </div>
               <div>
-                <label className="field-label">Último acesso</label>
+                <label className="field-label">Ãšltimo acesso</label>
                 <input
                   className="field-input bg-slate-50"
                   value={profile?.ultimoAcesso ? new Date(profile.ultimoAcesso).toLocaleString('pt-BR') : '-'}
@@ -236,16 +236,16 @@ export default function UserMenu({ user, onLogout, onUserUpdate }) {
           {msg && <div className="p-3 bg-emerald-50 text-emerald-700 rounded-lg text-sm" role="status">{msg}</div>}
           <div>
             <label className="field-label" htmlFor="senha-atual">Senha atual</label>
-            <input id="senha-atual" type="password" autoComplete="current-password" className="field-input" value={pwd.senha_atual} onChange={(e) => setPwd({ ...pwd, senha_atual: e.target.value })} required maxLength={6} />
+            <input id="senha-atual" type="password" autoComplete="current-password" className="field-input" value={pwd.senha_atual} onChange={(e) => setPwd({ ...pwd, senha_atual: e.target.value })} required maxLength={72} />
           </div>
           <div>
             <label className="field-label" htmlFor="nova-senha">Nova senha</label>
-            <input id="nova-senha" type="password" autoComplete="new-password" className="field-input" value={pwd.nova_senha} onChange={(e) => setPwd({ ...pwd, nova_senha: e.target.value })} required minLength={4} maxLength={6} />
-            <p className="text-xs text-slate-500 mt-1">Mínimo 4 e máximo 6 caracteres.</p>
+            <input id="nova-senha" type="password" autoComplete="new-password" className="field-input" value={pwd.nova_senha} onChange={(e) => setPwd({ ...pwd, nova_senha: e.target.value })} required minLength={4} maxLength={72} />
+            <p className="text-xs text-slate-500 mt-1">MÃ­nimo 4 e mÃ¡ximo 6 caracteres.</p>
           </div>
           <div>
             <label className="field-label" htmlFor="confirmar-senha">Confirmar nova senha</label>
-            <input id="confirmar-senha" type="password" autoComplete="new-password" className="field-input" value={pwd.confirmar_senha} onChange={(e) => setPwd({ ...pwd, confirmar_senha: e.target.value })} required maxLength={6} />
+            <input id="confirmar-senha" type="password" autoComplete="new-password" className="field-input" value={pwd.confirmar_senha} onChange={(e) => setPwd({ ...pwd, confirmar_senha: e.target.value })} required maxLength={72} />
           </div>
         </form>
       </Modal>

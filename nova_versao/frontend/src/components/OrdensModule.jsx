@@ -3,6 +3,7 @@ import { Search, Plus, Edit2, Loader2 } from 'lucide-react';
 import Modal from './ui/Modal';
 import { Pagination, LoadingBlock, EmptyState, PageHeader } from './ui/Pagination';
 import { BotaoImprimirOS } from './ordens/OrdemServicoPrint';
+import { apiFetch, buildQuery } from '../utils/api';
 
 export default function OrdensModule() {
   const [data, setData] = useState({ data: [], totalPages: 1, page: 1, total: 0 });
@@ -13,6 +14,7 @@ export default function OrdensModule() {
   const [editingOrdem, setEditingOrdem] = useState(null);
   const [itensOs, setItensOs] = useState([]);
   const [loadingItens, setLoadingItens] = useState(false);
+  const [error, setError] = useState('');
 
   const getInitialForm = () => ({
     IDCLI: '', EQUIPAMENTO: '', DEFEITO: '', IN_STATUS: 'Aberto',
@@ -24,12 +26,13 @@ export default function OrdensModule() {
 
   const fetchOrdens = async (pageNum, query) => {
     setLoading(true);
+    setError('');
     try {
-      const res = await fetch(`/api/ordens?page=${pageNum}&limit=10&q=${query}`);
-      const result = await res.json();
+      const result = await apiFetch(`/ordens${buildQuery({ page: pageNum, limit: 10, q: query })}`);
       setData(result);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Falha ao carregar ordens');
     } finally {
       setLoading(false);
     }
@@ -38,10 +41,10 @@ export default function OrdensModule() {
   const fetchItens = async (idser) => {
     setLoadingItens(true);
     try {
-      const res = await fetch(`/api/ordens/${idser}/itens`);
-      setItensOs(await res.json());
-    } catch (error) {
-      console.error(error);
+      const result = await apiFetch(`/ordens/${idser}/itens`);
+      setItensOs(result);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoadingItens(false);
     }
@@ -54,19 +57,25 @@ export default function OrdensModule() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    setError('');
     const isEdit = !!editingOrdem;
-    const url = isEdit
-      ? `/api/ordens/${editingOrdem.IDSER}`
-      : '/api/ordens';
-
-    await fetch(url, {
-      method: isEdit ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-    });
-
-    setModalOpen(false);
-    fetchOrdens(page, search);
+    try {
+      if (isEdit) {
+        await apiFetch(`/ordens/${editingOrdem.IDSER}`, {
+          method: 'PUT',
+          body: JSON.stringify(formData),
+        });
+      } else {
+        await apiFetch('/ordens', {
+          method: 'POST',
+          body: JSON.stringify(formData),
+        });
+      }
+      setModalOpen(false);
+      fetchOrdens(page, search);
+    } catch (err) {
+      setError(err.message || 'Falha ao salvar ordem');
+    }
   };
 
   const openEdit = (ordem) => {

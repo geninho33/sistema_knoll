@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { getClientIp, getUserAgent, loadUserPermissions, authMiddleware } = require('../middleware/auth');
 const { registrarAcesso, registrarAuditoria, verificarHorarioAcesso } = require('../utils/audit');
+const { verifyPassword, hashPassword, legacyPlainPassword } = require('../utils/password');
 
 const router = express.Router();
 
@@ -106,7 +107,8 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    if (user.cd_pass !== senha) {
+    const passCheck = await verifyPassword(senha, user.cd_pass, sysUser.password_hash);
+    if (!passCheck.ok) {
       await registrarAcesso({
         usuarioId: sysUser.id,
         login: usuario,
@@ -116,6 +118,14 @@ router.post('/login', async (req, res) => {
         detalhes: 'Senha incorreta',
       });
       return res.status(401).json({ error: 'Senha incorreta' });
+    }
+
+    // Upgrade transparente: plaintext -> bcrypt
+    if (passCheck.upgradedHash) {
+      await db.query(
+        `UPDATE sys_usuarios SET password_hash = ? WHERE id = ?`,
+        [passCheck.upgradedHash, sysUser.id]
+      );
     }
 
     const horario = await verificarHorarioAcesso(user.cd_usrs);
@@ -261,23 +271,35 @@ router.put('/me/senha', authMiddleware, async (req, res) => {
     if (String(nova_senha).length < 4) {
       return res.status(400).json({ error: 'A nova senha deve ter no mínimo 4 caracteres' });
     }
-    if (String(nova_senha).length > 6) {
-      return res.status(400).json({ error: 'A senha pode ter no máximo 6 caracteres (compatibilidade do sistema)' });
+    if (String(nova_senha).length > 72) {
+      return res.status(400).json({ error: 'A nova senha deve ter no máximo 72 caracteres' });
     }
 
     const [rows] = await db.query(
-      `SELECT cd_pass FROM knoll_usuarios WHERE cd_usrs = ?`,
+      `SELECT u.cd_pass, su.id AS sys_id, su.password_hash
+       FROM knoll_usuarios u
+       LEFT JOIN sys_usuarios su ON su.cd_usrs = u.cd_usrs AND su.deleted_at IS NULL
+       WHERE u.cd_usrs = ?`,
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Usuário não encontrado' });
-    if (rows[0].cd_pass !== senha_atual) {
+
+    const check = await verifyPassword(senha_atual, rows[0].cd_pass, rows[0].password_hash);
+    if (!check.ok) {
       return res.status(401).json({ error: 'Senha atual incorreta' });
     }
 
+    const newHash = await hashPassword(nova_senha);
     await db.query(`UPDATE knoll_usuarios SET cd_pass = ? WHERE cd_usrs = ?`, [
-      String(nova_senha).substring(0, 6),
+      legacyPlainPassword(nova_senha),
       req.user.id,
     ]);
+    if (rows[0].sys_id) {
+      await db.query(`UPDATE sys_usuarios SET password_hash = ? WHERE id = ?`, [
+        newHash,
+        rows[0].sys_id,
+      ]);
+    }
 
     await registrarAuditoria({
       usuarioId: req.user.sysId,

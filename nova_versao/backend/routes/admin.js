@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { authMiddleware, requirePermission } = require('../middleware/auth');
 const { registrarAuditoria } = require('../utils/audit');
+const { hashPassword, legacyPlainPassword } = require('../utils/password');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -211,8 +212,10 @@ router.get('/usuarios/:id', requirePermission('admin_usuarios.consulta'), async 
   try {
     const [rows] = await db.query(
       `
-      SELECT su.*, u.nm_usrs AS nome, u.nm_logn AS login, u.cd_pass AS senha,
-             u.hr_matt_entr, u.hr_matt_saida, u.hr_vesp_entr, u.hr_vesp_saida
+      SELECT su.id, su.cd_usrs, su.perfil_id, su.email, su.status, su.created_at, su.updated_at,
+             u.nm_usrs AS nome, u.nm_logn AS login,
+             u.hr_matt_entr, u.hr_matt_saida, u.hr_vesp_entr, u.hr_vesp_saida,
+             CASE WHEN su.password_hash IS NOT NULL AND su.password_hash <> '' THEN 1 ELSE 0 END AS tem_hash
       FROM sys_usuarios su
       JOIN knoll_usuarios u ON u.cd_usrs = su.cd_usrs
       WHERE su.id = ? AND su.deleted_at IS NULL
@@ -226,7 +229,7 @@ router.get('/usuarios/:id', requirePermission('admin_usuarios.consulta'), async 
       [req.params.id]
     );
 
-    res.json({ ...rows[0], horarios, dias: DIAS });
+    res.json({ ...rows[0], senha: '', horarios, dias: DIAS });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -273,7 +276,7 @@ router.post('/usuarios', requirePermission('admin_usuarios.escrita'), async (req
         nextId,
         nome,
         login,
-        String(senha).substring(0, 6),
+        legacyPlainPassword(senha),
         email || null,
         hr_matt_entr || null,
         hr_matt_saida || null,
@@ -283,8 +286,8 @@ router.post('/usuarios', requirePermission('admin_usuarios.escrita'), async (req
     );
 
     const [ins] = await conn.query(
-      `INSERT INTO sys_usuarios (cd_usrs, perfil_id, email, status) VALUES (?, ?, ?, ?)`,
-      [nextId, perfil_id || 2, email || null, status === 'I' ? 'I' : 'A']
+      `INSERT INTO sys_usuarios (cd_usrs, perfil_id, email, password_hash, status) VALUES (?, ?, ?, ?, ?)`,
+      [nextId, perfil_id || 2, email || null, passHash, status === 'I' ? 'I' : 'A']
     );
     const sysId = ins.insertId;
 
@@ -346,7 +349,7 @@ router.put('/usuarios/:id', requirePermission('admin_usuarios.escrita'), async (
 
     await conn.beginTransaction();
 
-    const senhaFinal = senha ? String(senha).substring(0, 6) : atual[0].cd_pass;
+    const senhaFinal = senha ? legacyPlainPassword(senha) : atual[0].cd_pass;
     await conn.query(
       `UPDATE knoll_usuarios SET
         nm_usrs = ?, nm_logn = ?, cd_pass = ?, ds_email = ?,
@@ -365,10 +368,18 @@ router.put('/usuarios/:id', requirePermission('admin_usuarios.escrita'), async (
       ]
     );
 
-    await conn.query(
-      `UPDATE sys_usuarios SET perfil_id = ?, email = ?, status = ? WHERE id = ?`,
-      [perfil_id || null, email || null, status === 'I' ? 'I' : 'A', id]
-    );
+    if (senha) {
+      const passHash = await hashPassword(senha);
+      await conn.query(
+        `UPDATE sys_usuarios SET perfil_id = ?, email = ?, password_hash = ?, status = ? WHERE id = ?`,
+        [perfil_id || null, email || null, passHash, status === 'I' ? 'I' : 'A', id]
+      );
+    } else {
+      await conn.query(
+        `UPDATE sys_usuarios SET perfil_id = ?, email = ?, status = ? WHERE id = ?`,
+        [perfil_id || null, email || null, status === 'I' ? 'I' : 'A', id]
+      );
+    }
 
     await conn.query(`DELETE FROM sys_horarios_acesso WHERE usuario_id = ?`, [id]);
     for (const h of horarios) {
@@ -382,7 +393,7 @@ router.put('/usuarios/:id', requirePermission('admin_usuarios.escrita'), async (
 
     await conn.commit();
 
-    const operacao = senha && senha !== atual[0].cd_pass ? 'SENHA' : 'UPDATE';
+    const operacao = senha ? 'SENHA' : 'UPDATE';
     await registrarAuditoria({
       usuarioId: req.user.sysId,
       usuarioNome: req.user.username,

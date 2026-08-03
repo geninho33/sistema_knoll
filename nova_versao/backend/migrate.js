@@ -34,6 +34,19 @@ async function ensureConfigColumns(conn) {
   }
 }
 
+async function ensurePasswordColumns(conn) {
+  try {
+    await conn.query(`ALTER TABLE knoll_usuarios MODIFY COLUMN cd_pass VARCHAR(100) NULL`);
+  } catch (_) {
+    /* ignore */
+  }
+  const [cols] = await conn.query(`SHOW COLUMNS FROM sys_usuarios`);
+  const names = new Set(cols.map((c) => c.Field));
+  if (!names.has('password_hash')) {
+    await conn.query(`ALTER TABLE sys_usuarios ADD COLUMN password_hash VARCHAR(100) NULL AFTER email`);
+  }
+}
+
 async function run() {
   const dir = path.join(__dirname, 'migrations');
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
@@ -51,6 +64,7 @@ async function run() {
     const conn = await db.getConnection();
     try {
       await ensureConfigColumns(conn);
+      await ensurePasswordColumns(conn);
     } finally {
       conn.release();
     }

@@ -90,7 +90,7 @@ export default function Login({ onLogin }) {
                   className="field-input pl-10"
                   placeholder="••••••"
                   required
-                  maxLength={6}
+                  maxLength={72}
                 />
               </div>
             </div>

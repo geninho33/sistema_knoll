@@ -1,6 +1,9 @@
 const express = require('express');
 const db = require('../db');
+const { authMiddleware } = require('../middleware/auth');
 const router = express.Router();
+
+router.use(authMiddleware);
 
 // GET /clientes (Search + Pagination)
 router.get('/clientes', async (req, res) => {
@@ -200,6 +203,31 @@ router.get('/ordens/:id/itens', async (req, res) => {
     const { id } = req.params;
     const [rows] = await db.query('SELECT * FROM knoll_servicos_itens WHERE IDSER = ?', [id]);
     res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /dashboard/kpis
+router.get('/dashboard/kpis', async (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const [[osAbertas]] = await db.query(
+      `SELECT COUNT(*) AS total FROM knoll_servicos
+       WHERE IN_STATUS IS NULL OR IN_STATUS NOT IN ('Encerrado', 'Cancelado', 'Concluído')`
+    );
+    const [[clientes]] = await db.query(`SELECT COUNT(*) AS total FROM knoll_clientes`);
+    const [[agendaHoje]] = await db.query(
+      `SELECT COUNT(*) AS total FROM knoll_servicos
+       WHERE DATE(DT_SADA) = ?
+         AND (IN_STATUS IS NULL OR IN_STATUS NOT IN ('Cancelado'))`,
+      [today]
+    );
+    res.json({
+      os_abertas: Number(osAbertas.total) || 0,
+      clientes: Number(clientes.total) || 0,
+      agenda_hoje: Number(agendaHoje.total) || 0,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

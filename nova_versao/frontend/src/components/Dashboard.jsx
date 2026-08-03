@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LogOut, Home, Wrench, Users, Calendar, BarChart3, User, Menu, X,
   FileBarChart, Shield, ChevronDown, ChevronRight, Package, Boxes, ClipboardList, KeyRound, ScrollText, History,
-  MapPinned, Building2
+  MapPinned, Building2, Loader2
 } from 'lucide-react';
 import ClientesModule from './ClientesModule';
 import OrdensModule from './OrdensModule';
@@ -54,9 +55,10 @@ const MENU = [
 
 function canAccess(user, moduleId) {
   if (!user) return false;
+  if (moduleId === 'home') return true;
   if (user.perfilId === 1) return true;
   const perms = user.permissions || [];
-  if (perms.length === 0) return true;
+  if (perms.length === 0) return false;
   return perms.includes(`${moduleId}.consulta`) || perms.includes(`${moduleId}.escrita`);
 }
 
@@ -162,32 +164,58 @@ function NavContent({
   );
 }
 
-export default function Dashboard({ user, onLogout, onUserUpdate }) {
-  const [activeModule, setActiveModule] = useState('home');
+export default function Dashboard({ user, onLogout, onUserUpdate, pathToModule, moduleToPath }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeModule = pathToModule?.(location.pathname) || 'home';
   const [openGroups, setOpenGroups] = useState({ relatorios: true, admin: true });
   const [menuOpen, setMenuOpen] = useState(false);
   const [empresa, setEmpresa] = useState(null);
+  const [kpis, setKpis] = useState({ os_abertas: null, clientes: null, agenda_hoje: null });
+  const [kpisLoading, setKpisLoading] = useState(true);
 
-  const goTo = (id) => setActiveModule(id);
+  const goTo = (id) => {
+    const path = moduleToPath?.(id) || '/';
+    navigate(path);
+  };
+
+  useEffect(() => {
+    if (!canAccess(user, activeModule) && activeModule !== 'home') {
+      navigate('/', { replace: true });
+    }
+  }, [user, activeModule, navigate]);
 
   const loadEmpresa = useCallback(async () => {
     try {
       const data = await apiFetch('/configuracao/public');
       setEmpresa(data);
     } catch (_) {
-      /* ignore — sessão inativa já é tratada no apiFetch */
+      /* ignore */
+    }
+  }, []);
+
+  const loadKpis = useCallback(async () => {
+    setKpisLoading(true);
+    try {
+      const data = await apiFetch('/dashboard/kpis');
+      setKpis(data);
+    } catch (_) {
+      setKpis({ os_abertas: 0, clientes: 0, agenda_hoje: 0 });
+    } finally {
+      setKpisLoading(false);
     }
   }, []);
 
   useEffect(() => {
     loadEmpresa();
+    loadKpis();
     const onUpdated = (e) => {
       if (e.detail) setEmpresa((prev) => ({ ...prev, ...e.detail }));
       else loadEmpresa();
     };
     window.addEventListener('knoll:empresa-updated', onUpdated);
     return () => window.removeEventListener('knoll:empresa-updated', onUpdated);
-  }, [loadEmpresa]);
+  }, [loadEmpresa, loadKpis]);
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -228,15 +256,30 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
             <div className="kpi-grid mb-6 sm:mb-8">
               <div className="card-surface p-4 sm:p-6 flex items-center gap-4">
                 <div className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0"><Wrench size={26} /></div>
-                <div><p className="text-sm text-slate-500 font-semibold mb-0.5">O.S. Abertas</p><h3 className="text-2xl sm:text-3xl font-black text-slate-800">12</h3></div>
+                <div>
+                  <p className="text-sm text-slate-500 font-semibold mb-0.5">O.S. Abertas</p>
+                  <h3 className="text-2xl sm:text-3xl font-black text-slate-800">
+                    {kpisLoading ? <Loader2 className="animate-spin inline" size={22} /> : (kpis.os_abertas ?? '—')}
+                  </h3>
+                </div>
               </div>
               <div className="card-surface p-4 sm:p-6 flex items-center gap-4">
                 <div className="w-12 h-12 sm:w-14 sm:h-14 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0"><Users size={26} /></div>
-                <div><p className="text-sm text-slate-500 font-semibold mb-0.5">Clientes</p><h3 className="text-2xl sm:text-3xl font-black text-slate-800">348</h3></div>
+                <div>
+                  <p className="text-sm text-slate-500 font-semibold mb-0.5">Clientes</p>
+                  <h3 className="text-2xl sm:text-3xl font-black text-slate-800">
+                    {kpisLoading ? <Loader2 className="animate-spin inline" size={22} /> : (kpis.clientes ?? '—')}
+                  </h3>
+                </div>
               </div>
               <div className="card-surface p-4 sm:p-6 flex items-center gap-4 sm:col-span-2 lg:col-span-1">
                 <div className="w-12 h-12 sm:w-14 sm:h-14 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center shrink-0"><Calendar size={26} /></div>
-                <div><p className="text-sm text-slate-500 font-semibold mb-0.5">Agenda Hoje</p><h3 className="text-2xl sm:text-3xl font-black text-slate-800">5</h3></div>
+                <div>
+                  <p className="text-sm text-slate-500 font-semibold mb-0.5">Agenda Hoje</p>
+                  <h3 className="text-2xl sm:text-3xl font-black text-slate-800">
+                    {kpisLoading ? <Loader2 className="animate-spin inline" size={22} /> : (kpis.agenda_hoje ?? '—')}
+                  </h3>
+                </div>
               </div>
             </div>
             <div className="card-surface p-6 sm:p-10 text-center">

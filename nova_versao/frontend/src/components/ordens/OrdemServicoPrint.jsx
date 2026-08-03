@@ -6,7 +6,12 @@ import { calcTotaisOS, formatMoney, toNumber } from '../../utils/money';
 
 function esc(value) {
   if (value == null || value === '') return '';
-  return String(value);
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function formatDt(value) {

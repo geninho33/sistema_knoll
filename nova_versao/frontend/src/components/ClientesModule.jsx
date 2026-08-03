@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Loader2 } from 'lucide-react';
 import Modal from './ui/Modal';
 import { Pagination, LoadingBlock, EmptyState, PageHeader } from './ui/Pagination';
+import { apiFetch, buildQuery } from '../utils/api';
 
 export default function ClientesModule() {
   const [data, setData] = useState({ data: [], totalPages: 1, page: 1, total: 0 });
@@ -10,6 +11,7 @@ export default function ClientesModule() {
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
+  const [error, setError] = useState('');
 
   const getInitialForm = () => ({
     NOME: '', RAZAO: '', TELEFONE: '', CELULAR: '', FAX: '',
@@ -21,12 +23,13 @@ export default function ClientesModule() {
 
   const fetchClientes = async (pageNum, query) => {
     setLoading(true);
+    setError('');
     try {
-      const res = await fetch(`/api/clientes?page=${pageNum}&limit=10&q=${query}`);
-      const result = await res.json();
+      const result = await apiFetch(`/clientes${buildQuery({ page: pageNum, limit: 10, q: query })}`);
       setData(result);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Falha ao carregar clientes');
     } finally {
       setLoading(false);
     }
@@ -39,19 +42,25 @@ export default function ClientesModule() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    setError('');
     const isEdit = !!editingClient;
-    const url = isEdit
-      ? `/api/clientes/${editingClient.IDCLI}`
-      : '/api/clientes';
-
-    await fetch(url, {
-      method: isEdit ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-    });
-
-    setModalOpen(false);
-    fetchClientes(page, search);
+    try {
+      if (isEdit) {
+        await apiFetch(`/clientes/${editingClient.IDCLI}`, {
+          method: 'PUT',
+          body: JSON.stringify(formData),
+        });
+      } else {
+        await apiFetch('/clientes', {
+          method: 'POST',
+          body: JSON.stringify(formData),
+        });
+      }
+      setModalOpen(false);
+      fetchClientes(page, search);
+    } catch (err) {
+      setError(err.message || 'Falha ao salvar cliente');
+    }
   };
 
   const openEdit = (client) => {
