@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS sys_usuarios (
   cd_usrs INT NOT NULL UNIQUE COMMENT 'Referência knoll_usuarios.cd_usrs',
   perfil_id INT UNSIGNED NULL,
   email VARCHAR(120) NULL,
+  password_hash VARCHAR(100) NULL,
   status ENUM('A','I') NOT NULL DEFAULT 'A' COMMENT 'A=Ativo I=Inativo',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

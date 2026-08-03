@@ -4,6 +4,7 @@ const db = require('../db');
 const { getClientIp, getUserAgent, loadUserPermissions, authMiddleware } = require('../middleware/auth');
 const { registrarAcesso, registrarAuditoria, verificarHorarioAcesso } = require('../utils/audit');
 const { verifyPassword, hashPassword, legacyPlainPassword } = require('../utils/password');
+const { getJwtSecret } = require('../utils/jwt');
 
 const router = express.Router();
 
@@ -80,10 +81,19 @@ router.post('/login', async (req, res) => {
     );
     let sysUser = sysRows[0];
     if (!sysUser) {
-      await db.query(
-        `INSERT INTO sys_usuarios (cd_usrs, perfil_id, email, status) VALUES (?, 2, ?, 'A')`,
-        [user.cd_usrs, user.ds_email || null]
-      );
+      const perfilPadrao = Number(user.cd_usrs) === 1 ? 1 : 2;
+      try {
+        await db.query(
+          `INSERT INTO sys_usuarios (cd_usrs, perfil_id, email, status) VALUES (?, ?, ?, 'A')`,
+          [user.cd_usrs, perfilPadrao, user.ds_email || null]
+        );
+      } catch (insErr) {
+        console.error('Insert sys_usuarios com perfil falhou, tentando sem perfil:', insErr.message);
+        await db.query(
+          `INSERT INTO sys_usuarios (cd_usrs, email, status) VALUES (?, ?, 'A')`,
+          [user.cd_usrs, user.ds_email || null]
+        );
+      }
       const [created] = await db.query(
         'SELECT * FROM sys_usuarios WHERE cd_usrs = ?',
         [user.cd_usrs]
@@ -122,10 +132,15 @@ router.post('/login', async (req, res) => {
 
     // Upgrade transparente: plaintext -> bcrypt
     if (passCheck.upgradedHash) {
-      await db.query(
-        `UPDATE sys_usuarios SET password_hash = ? WHERE id = ?`,
-        [passCheck.upgradedHash, sysUser.id]
-      );
+      try {
+        await db.query(
+          `UPDATE sys_usuarios SET password_hash = ? WHERE id = ?`,
+          [passCheck.upgradedHash, sysUser.id]
+        );
+      } catch (upgradeErr) {
+        // Coluna pode não existir em bancos antigos; login não deve falhar
+        console.error('Upgrade de senha bcrypt falhou:', upgradeErr.message);
+      }
     }
 
     const horario = await verificarHorarioAcesso(user.cd_usrs);
@@ -153,6 +168,11 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    const jwtSecret = getJwtSecret();
+    if (!process.env.JWT_SECRET) {
+      console.warn('JWT_SECRET não definido; usando fallback inseguro. Configure no .env');
+    }
+
     const permissions = await loadUserPermissions(user.cd_usrs);
     const token = jwt.sign(
       {
@@ -161,7 +181,7 @@ router.post('/login', async (req, res) => {
         username: user.nm_logn,
         perfilId: sysUser.perfil_id,
       },
-      process.env.JWT_SECRET,
+      jwtSecret,
       { expiresIn: '8h' }
     );
 
@@ -203,7 +223,10 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro no login:', error);
-    res.status(500).json({ error: 'Erro interno no servidor' });
+    res.status(500).json({
+      error: 'Erro interno no servidor',
+      detalhe: error.message,
+    });
   }
 });
 
@@ -325,7 +348,7 @@ router.post('/logout', async (req, res) => {
     let payload = null;
     if (token) {
       try {
-        payload = jwt.verify(token, process.env.JWT_SECRET);
+        payload = jwt.verify(token, getJwtSecret());
       } catch (_) {
         /* ignore */
       }

@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const { getJwtSecret } = require('../utils/jwt');
 
 const MSG_INATIVO = 'Acesso negado. Seu usuário encontra-se inativo no sistema.';
 
@@ -51,7 +52,7 @@ async function authMiddleware(req, res, next) {
       return res.status(401).json({ error: 'Token não informado', code: 'NO_TOKEN' });
     }
 
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, getJwtSecret());
     const sysUser = await assertUserActive(payload.id);
 
     req.user = {
@@ -76,7 +77,7 @@ async function optionalAuth(req, res, next) {
     const header = req.headers.authorization || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : null;
     if (token) {
-      const payload = jwt.verify(token, process.env.JWT_SECRET);
+      const payload = jwt.verify(token, getJwtSecret());
       const sysUser = await getSysUserByCd(payload.id);
       if (sysUser && !sysUser.deleted_at && isActiveStatus(sysUser.status)) {
         req.user = { ...payload, sysId: sysUser.id, perfilId: sysUser.perfil_id, status: sysUser.status };
