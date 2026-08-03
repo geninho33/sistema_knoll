@@ -35,6 +35,8 @@ else
   exit 1
 fi
 
+# --pull nunca; rebuild garante código novo (migrations/migrate.js)
+"${COMPOSE[@]}" --env-file "${ENV_FILE}" build --no-cache backend
 "${COMPOSE[@]}" --env-file "${ENV_FILE}" up -d --build
 
 echo "==> status"
@@ -49,3 +51,6 @@ echo ""
 echo "Após o primeiro deploy (banco novo), rode as migrations:"
 echo "  docker exec -it knoll-backend node migrate.js"
 echo "Login inicial (instalação limpa): admin / admin123"
+echo ""
+echo "Se o migrate ainda falhar com knoll_configuracao, a imagem está desatualizada:"
+echo "  git pull && docker compose build --no-cache backend && docker compose up -d backend"
