@@ -20,7 +20,22 @@ function splitSql(sql) {
     .filter((s) => s.length > 0);
 }
 
+async function tableExists(conn, tableName) {
+  const [rows] = await conn.query(
+    `SELECT 1 AS ok
+     FROM information_schema.tables
+     WHERE table_schema = DATABASE() AND table_name = ?
+     LIMIT 1`,
+    [tableName]
+  );
+  return rows.length > 0;
+}
+
 async function ensureConfigColumns(conn) {
+  if (!(await tableExists(conn, 'knoll_configuracao'))) {
+    console.log('⏭  knoll_configuracao ainda não existe (será criada pelas migrations)');
+    return;
+  }
   const [cols] = await conn.query(`SHOW COLUMNS FROM knoll_configuracao`);
   const names = new Set(cols.map((c) => c.Field));
   if (!names.has('nu_ie')) {
@@ -35,10 +50,16 @@ async function ensureConfigColumns(conn) {
 }
 
 async function ensurePasswordColumns(conn) {
-  try {
-    await conn.query(`ALTER TABLE knoll_usuarios MODIFY COLUMN cd_pass VARCHAR(100) NULL`);
-  } catch (_) {
-    /* ignore */
+  if (await tableExists(conn, 'knoll_usuarios')) {
+    try {
+      await conn.query(`ALTER TABLE knoll_usuarios MODIFY COLUMN cd_pass VARCHAR(100) NULL`);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  if (!(await tableExists(conn, 'sys_usuarios'))) {
+    console.log('⏭  sys_usuarios ainda não existe (será criada pelas migrations)');
+    return;
   }
   const [cols] = await conn.query(`SHOW COLUMNS FROM sys_usuarios`);
   const names = new Set(cols.map((c) => c.Field));
@@ -58,17 +79,6 @@ async function run() {
       executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
-
-  // Garante colunas de logo/IE/obs na configuração
-  {
-    const conn = await db.getConnection();
-    try {
-      await ensureConfigColumns(conn);
-      await ensurePasswordColumns(conn);
-    } finally {
-      conn.release();
-    }
-  }
 
   const [done] = await db.query('SELECT filename FROM sys_migrations');
   const executed = new Set(done.map((r) => r.filename));
@@ -96,6 +106,17 @@ async function run() {
       await conn.rollback();
       console.error(`❌ Falha em ${file}:`, err.message);
       throw err;
+    } finally {
+      conn.release();
+    }
+  }
+
+  // Ajustes idempotentes após o schema existir
+  {
+    const conn = await db.getConnection();
+    try {
+      await ensureConfigColumns(conn);
+      await ensurePasswordColumns(conn);
     } finally {
       conn.release();
     }
