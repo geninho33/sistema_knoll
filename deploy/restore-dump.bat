@@ -32,5 +32,8 @@ type "%DUMP%" | docker exec -i knoll-mysql mysql -u%DB_USER% -p%DB_PASSWORD% --s
 if errorlevel 1 exit /b 1
 
 echo ==^> OK
-echo Rode: docker exec -it knoll-backend node migrate.js
+echo Rode migrations + repair:
+echo   docker exec -it knoll-backend node migrate.js
+echo   docker exec -it knoll-backend node migrate.js status
+echo   docker exec -it knoll-backend node migrate.js repair
 endlocal
