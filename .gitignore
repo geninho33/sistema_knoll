@@ -37,3 +37,7 @@ coverage/
 # Backend runtime
 backend/uploads/
 **/backend/uploads/
+
+# Dump temporários / backup local
+*.sql.tmp
+*.sql.bak

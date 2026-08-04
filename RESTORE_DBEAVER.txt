@@ -1,0 +1,38 @@
+﻿================================================================================
+ERRO 2026 SSL no DBeaver — NAO e problema do arquivo .sql
+================================================================================
+
+O DBeaver esta chamando o cliente MySQL 5.7:
+  C:\Program Files\MySQL\MySQL Server 5.7\bin\mysql.exe
+contra o MySQL 8.0 do Docker (porta 3308). Isso gera:
+  ERROR 2026 (HY000): SSL connection error: unknown error number
+ANTES de executar qualquer linha do dump.
+
+CORRECAO NO DBEAVER
+-------------------
+A) Conexao MySQL (Edit Connection):
+   - Driver properties:
+       useSSL = false
+       allowPublicKeyRetrieval = true
+       sslMode = DISABLED   (se existir)
+
+B) Ferramenta Native Restore (Tools > Restore):
+   - Local client: aponte para MySQL 8.0, NAO 5.7
+     Ex.: C:\Program Files\MySQL\MySQL Server 8.0\bin
+   - Em Expert settings / Extra command args, adicione:
+       --ssl-mode=DISABLED
+
+C) Alternativa (mais simples): nao use Restore nativo.
+   Use SQL Editor > Execute SQL Script no arquivo
+   marlon20260804_mysql8.sql (com a conexao ja com useSSL=false).
+
+D) Via Docker (recomendado):
+   deploy\restore-dump.bat marlon20260804_mysql8.sql
+
+Arquivo preparado para MySQL 8: marlon20260804_mysql8.sql
+(preambulo utf8mb4 + sql_mode com ALLOW_INVALID_DATES)
+
+Credenciais padrao Docker:
+  host=69.6.215.35  port=3308  user=knoll  password=knoll_change_me  database=knoll
+  (ou root / root_change_me se nao alterou deploy/.env)
+================================================================================
