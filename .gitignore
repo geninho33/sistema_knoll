@@ -41,3 +41,5 @@ backend/uploads/
 # Dump temporários / backup local
 *.sql.tmp
 *.sql.bak
+knoll_dados_local.sql
+marlon*.sql

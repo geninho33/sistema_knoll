@@ -6,7 +6,9 @@ setlocal
 set ROOT=%~dp0..
 set DUMP=%~1
 if "%DUMP%"=="" (
-  if exist "%ROOT%\marlon20260804_mysql8.sql" (
+  if exist "%ROOT%\knoll_dados_local.sql" (
+    set DUMP=%ROOT%\knoll_dados_local.sql
+  ) else if exist "%ROOT%\marlon20260804_mysql8.sql" (
     set DUMP=%ROOT%\marlon20260804_mysql8.sql
   ) else (
     set DUMP=%ROOT%\marlon20260804.sql
